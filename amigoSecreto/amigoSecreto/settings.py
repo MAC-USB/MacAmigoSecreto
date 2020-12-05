@@ -19,8 +19,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
+# Virtual Environment
+import os
+import sys
+
+def get_env(name, default=None):
+    """ Obtiene las variables del entorno """
+    try:
+        return os.environ[name]
+    except Exception as exc:
+        if default is None:
+            print("Missing variable %s: %s"%(name, exc))
+            sys.exit(-1)
+        else:
+            print("Warning: Setting to default value %s=%s"%(name, default))
+            return default
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '%(h90ma1e0!8x^h8&z-%qqicld7hca-a6nb_j9g%i28a544e!5'
+SECRET_KEY = get_env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -75,12 +91,12 @@ WSGI_APPLICATION = 'amigoSecreto.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'macAmigo_db', 
-        'USER': 'superAmigo', 
-        'PASSWORD': 'superAmigo',
-        'HOST': '127.0.0.1', 
-        'PORT': '5432',
+        'ENGINE': get_env('DB_ENGINE'),
+        'NAME': get_env('DB_NAME'), 
+        'USER': get_env('DB_USER'), 
+        'PASSWORD': get_env('DB_PASSWORD'),
+        'HOST': get_env('DB_HOST'),
+        'PORT': get_env('DB_PORT'),
     }
 }
 
