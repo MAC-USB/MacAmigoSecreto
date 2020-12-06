@@ -10,6 +10,7 @@ class UserData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     gift = models.CharField(max_length=50)
     guessed = models.BooleanField(default=False)    #For the final event
+    alias = models.CharField(max_length=4)
 
 class Teams(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
