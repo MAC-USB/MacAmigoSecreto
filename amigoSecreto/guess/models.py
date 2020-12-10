@@ -34,23 +34,3 @@ class Guess(models.Model):
     gifted = models.ForeignKey(User, on_delete=models.CASCADE, related_name='guess_gifted')
     date = models.DateTimeField(User)
     answer = models.BooleanField()
-
-class Profile(models.Model):
-    """ Modelo base de usuario. """
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.CharField(max_length=255, blank=True)
-    web = models.URLField(blank=True)
-
-    def __str__(self): 
-        return self.user.username
-
-@receiver(post_save, sender=User)
-def make_user_profile(sender, instance, created, **kwargs):
-    """ Crea el perfil del usuairo."""
-    if created:
-        Profile.objects.create(user=instance)
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    """ Guarda el perfil del usuario."""
-    instance.profile.save()
