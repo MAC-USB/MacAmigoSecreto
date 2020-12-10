@@ -8,9 +8,11 @@ from .models import Profile
 from .forms import SignUpForm
 
 class SignInView(LoginView):
+    """ Clase heredada de LoginView que representa la vista para el login."""
     template_name = 'guess/signin.html'
 
 class SignUpView(CreateView):
+    """ Clase heredada de CreateView que representa la vista para el registro."""
     model = Profile
     form_class = SignUpForm
 
@@ -25,9 +27,12 @@ class SignUpView(CreateView):
         return redirect('/')
 
 class SignOutView(LogoutView):
+    """ Clase heredada de LogoutView que representa la vista para el cierre de sesion."""
     pass
 
 @method_decorator(login_required, name='dispatch')
 class WelcomeView(TemplateView):
-   template_name = 'guess/welcome.html'
+    """ Clase heredada de TemplateView que representa la vista para la pagina principal.
+    En caso de no haber usuario registrado, redirige a la vista del login."""
+    template_name = 'guess/welcome.html'
 

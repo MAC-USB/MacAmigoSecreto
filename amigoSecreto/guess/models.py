@@ -36,6 +36,7 @@ class Guess(models.Model):
     answer = models.BooleanField()
 
 class Profile(models.Model):
+    """ Modelo base de usuario. """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.CharField(max_length=255, blank=True)
     web = models.URLField(blank=True)
@@ -45,9 +46,11 @@ class Profile(models.Model):
 
 @receiver(post_save, sender=User)
 def make_user_profile(sender, instance, created, **kwargs):
+    """ Crea el perfil del usuairo."""
     if created:
         Profile.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
+    """ Guarda el perfil del usuario."""
     instance.profile.save()
