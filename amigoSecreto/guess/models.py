@@ -48,3 +48,12 @@ class Guess(models.Model):
     gifted = models.ForeignKey(User, on_delete=models.CASCADE, related_name='guess_gifted')
     date = models.DateTimeField(User)
     answer = models.BooleanField()
+
+class Round(models.Model):
+    game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    firstSelection = models.DateTimeField()
+    secondSelection = models.DateTimeField()
+    thirdSelection = models.DateTimeField()
+    fourthSelection = models.DateTimeField()
+    fifthSelection = models.DateTimeField()
+    sixthSelection = models.DateTimeField()

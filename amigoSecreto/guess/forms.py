@@ -119,11 +119,65 @@ class GameForm(forms.ModelForm):
         days = self.cleaned_data['days']
         return days
 
+    def gen_round(self, startDate, days):
+        select_duration = days*4
+        selections = [None]*6
+        for i in range(6):
+            selections[i] = startDate + timedelta(hours = i*select_duration)
+        return selections
+
     def save(self, commit: bool = True):
-        """ Guarda los datos del juego en la BD."""
-        Game(
+        """ Guarda los datos del juego y las rondas en la BD."""
+        # Aqui almacenaremos las rondas creadas
+        rounds = []
+        # Numero de dias que durara el juego
+        days = self.cleaned_data['days']
+        # Convertimos la fecha de inicio en un datetime.
+        startDate = self.cleaned_data['startDate']
+        startDate = datetime.datetime(
+            year=startDate.year,
+            month=startDate.month,
+            day=startDate.day
+        )
+
+        # Ronda 1
+        if days in (9, 12): 
+            rounds.append(self.gen_round(startDate, 3))
+            startDate += timedelta(days=3)
+        else:
+            rounds.append(self.gen_round(startDate, 2))
+            startDate += timedelta(days=2)
+
+        # Ronda 2
+        if days in (8, 9, 11, 12): 
+            rounds.append(self.gen_round(startDate, 3))
+            startDate += timedelta(days=3)
+        else:
+            rounds.append(self.gen_round(startDate, 2))
+            startDate += timedelta(days=2)
+
+        # Ronda 3
+        if days in (7, 8, 9): rounds.append(self.gen_round(startDate, 3))
+        elif days > 9: rounds.append(self.gen_round(startDate, 6))
+        else: rounds.append(self.gen_round(startDate, 2))
+
+        # Almacenamos los datos del juego.
+        game = Game(
             startDate=self.cleaned_data['startDate'],
             days=self.cleaned_data['days'],
             endDate=self.cleaned_data['startDate'] + \
                 timedelta(days=self.cleaned_data['days'])
-        ).save()
+        )
+        game.save()
+
+        # Almacenamos los datos de cada ronda.
+        for i, r in enumerate(rounds):
+            Round(
+                game=game,
+                firstSelection = r[0],
+                secondSelection = r[1],
+                thirdSelection = r[2],
+                fourthSelection = r[3],
+                fifthSelection = r[4],
+                sixthSelection = r[5],
+            ).save()
