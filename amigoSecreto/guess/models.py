@@ -40,7 +40,6 @@ class Profile(models.Model):
     bio = models.CharField(max_length=255, blank=True)
     web = models.URLField(blank=True)
 
-    # Python 3
     def __str__(self): 
         return self.user.username
 
