@@ -97,7 +97,7 @@ class GameForm(forms.ModelForm):
         - startDate: Fecha de inicio del juego.
         - days: Numero de juegos que durara el juego.
     """
-    startDate = forms.DateField()
+    startDate = forms.DateField(initial=datetime.date.today() + timedelta(days=1))
     days = forms.IntegerField(min_value=6, max_value=12)
 
     class Meta:
@@ -112,6 +112,8 @@ class GameForm(forms.ModelForm):
     def clean_startDate(self):
         """ Guarda la fecha de inicio del juego."""
         startDate = self.cleaned_data['startDate']
+        if startDate < datetime.date.today():
+            raise forms.ValidationError('The date must be at least tomorrow.')
         return startDate
 
     def clean_days(self):

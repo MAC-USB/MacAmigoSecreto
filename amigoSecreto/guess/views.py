@@ -2,11 +2,12 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.models import User 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.generic import CreateView, TemplateView
 from django.utils.decorators import method_decorator
 from .models import *
 from .forms import *
+
 
 class SignInView(LoginView):
     """ Clase heredada de LoginView que representa la vista para el login."""
@@ -38,7 +39,7 @@ class WelcomeView(TemplateView):
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')
 class CreateGameView(CreateView):
     """ Clase heredada de CreateView que representa la vista para la creacion de una
     instancia de juego."""
