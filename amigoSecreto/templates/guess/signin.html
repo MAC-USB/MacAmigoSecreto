@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Inicia Sesión{% endblock %}
+
 {% block content %}
 <!DOCTYPE html>
 <html>
@@ -311,23 +313,32 @@
       <form method="POST">
         {% csrf_token %}
         <p>
-            <input id="login" type="text" name="username" maxlength="100" 
-                placeholder="Username" class="fadeIn second" required>
-            <input id="alias" type="text" name="alias" maxlength="4" 
-                placeholder="Alias" class="fadeIn second" required>
-            <input id="gift" type="text" name="gift" maxlength="200" 
-                placeholder="Desired gift" class="fadeIn second" required>
-            <input id="password1" type="password" name="password1" maxlength="100" 
-                placeholder="Password" class="fadeIn third" required>
-            <input id="password2" type="password" name="password2" maxlength="100" 
-                placeholder="Confirmed password" class="fadeIn third" required>
+            <input id="{{ form.username.id_for_label }}" type="text" name="{{ form.username.name }}" maxlength="100" 
+                placeholder="Username" class="fadeIn second" {% if form.username.value != None %}value="{{ form.username.value|stringformat:'s' }}"{% endif %} required>
+            <input id="{{ form.password.id_for_label }}" type="password" name="{{ form.password.name }}" maxlength="100" 
+                placeholder="Password" class="fadeIn third" {% if form.password.value != None %}value="{{ form.password.value|stringformat:'s' }}"{% endif %} required>
         </p>
         <input type="submit" name="submit">
+        {% if form.errors %}
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <div class="alert alert-danger">
+                        <strong>{{ error|escape }}</strong>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <div class="alert alert-danger">
+                    <strong>{{ error|escape }}</strong>
+                </div>
+            {% endfor %}
+        {% endif %}
       </form>
 
-      <a href="{% url 'sign_in' %}" class="inactive underlineHover">Sign In </a>
+      <a href="{% url 'sign_up' %}" class="inactive underlineHover">Sign Up </a>
       <p> </p>
     </div>
   </div>
-</body>  
+</body>
+
 {% endblock content %}

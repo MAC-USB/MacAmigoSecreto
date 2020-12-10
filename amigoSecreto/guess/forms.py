@@ -23,14 +23,15 @@ class CustomUserCreationForm(UserCreationForm):
     def clean_username(self):
         """ Guarda el username y verifica que se encuentre en uso."""
         username = self.cleaned_data['username']
-        r = User.objects.filter(username=username)
-        if r.count():
+        if User.objects.filter(username=username).exists():
             raise ValidationError("Username already exists")
         return username
 
     def clean_alias(self):
         """ Guarda el alias."""
         alias = self.cleaned_data['alias']
+        if UserData.objects.filter(alias=alias).exists():
+            raise ValidationError("Alias already exists")
         return alias
 
     def clean_gift(self):
