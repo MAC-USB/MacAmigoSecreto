@@ -313,10 +313,27 @@
       <form method="POST">
         {% csrf_token %}
         <p>
-            <input id="{{ form.username.id_for_label }}" type="text" name="{{ form.username.name }}" maxlength="100" 
-                placeholder="Username" class="fadeIn second" {% if form.username.value != None %}value="{{ form.username.value|stringformat:'s' }}"{% endif %} required>
-            <input id="{{ form.password.id_for_label }}" type="password" name="{{ form.password.name }}" maxlength="100" 
-                placeholder="Password" class="fadeIn third" {% if form.password.value != None %}value="{{ form.password.value|stringformat:'s' }}"{% endif %} required>
+            <input id="{{ form.username.id_for_label }}" 
+                type="text" 
+                name="{{ form.username.name }}" 
+                maxlength="100" 
+                placeholder="Username" 
+                class="fadeIn second" 
+                {% if form.username.value != None %}
+                    value="{{ form.username.value|stringformat:'s' }}"
+                {% endif %} 
+                required>
+
+            <input id="{{ form.password.id_for_label }}" 
+                type="password" 
+                name="{{ form.password.name }}" 
+                maxlength="100" 
+                placeholder="Password" 
+                class="fadeIn third" 
+                {% if form.password.value != None %}
+                    value="{{ form.password.value|stringformat:'s' }}"
+                {% endif %} 
+                required>
         </p>
         <input type="submit" name="submit">
         {% if form.errors %}

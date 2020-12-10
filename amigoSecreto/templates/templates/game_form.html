@@ -183,6 +183,65 @@
       color: #cccccc;
       }
 
+      input[type=number] {
+      background-color: #f6f6f6;
+      border: none;
+      color: #0d0d0d;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 5px;
+      width: 85%;
+      border: 2px solid #f6f6f6;
+      -webkit-transition: all 0.5s ease-in-out;
+      -moz-transition: all 0.5s ease-in-out;
+      -ms-transition: all 0.5s ease-in-out;
+      -o-transition: all 0.5s ease-in-out;
+      transition: all 0.5s ease-in-out;
+      -webkit-border-radius: 5px 5px 5px 5px;
+      border-radius: 5px 5px 5px 5px;
+      }
+
+      input[type=number]:focus {
+      background-color: #fff;
+      border-bottom: 2px solid #5fbae9;
+      }
+
+      input[type=number]:placeholder {
+      color: #cccccc;
+      }
+
+      input[type=date] {
+      background-color: #f6f6f6;
+      border: none;
+      color: #0d0d0d;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 5px;
+      width: 85%;
+      border: 2px solid #f6f6f6;
+      -webkit-transition: all 0.5s ease-in-out;
+      -moz-transition: all 0.5s ease-in-out;
+      -ms-transition: all 0.5s ease-in-out;
+      -o-transition: all 0.5s ease-in-out;
+      transition: all 0.5s ease-in-out;
+      -webkit-border-radius: 5px 5px 5px 5px;
+      border-radius: 5px 5px 5px 5px;
+      }
+
+      input[type=date]:focus {
+      background-color: #fff;
+      border-bottom: 2px solid #5fbae9;
+      }
+
+      input[type=date]:placeholder {
+      color: #cccccc;
+      }
 
 
       /* ANIMATIONS */
@@ -311,75 +370,25 @@
       <form method="POST">
         {% csrf_token %}
         <p>
-            <input id="{{ form.first_name.id_for_label }}" 
-                type="text" 
-                name="{{ form.first_name.name }}" 
-                maxlength="100" 
-                placeholder="First name" 
+            <input id="{{ form.startDate.id_for_label }}" 
+                type="date" 
+                name="{{ form.startDate.name }}" 
+                placeholder="Start date" 
                 class="fadeIn second" 
-                {% if form.first_name.value != None %} 
-                    value="{{ form.first_name.value|stringformat:'s' }}"
+                {% if form.startDate.value != None %} 
+                    value="{{ form.startDate.value|stringformat:'s' }}"
                 {% endif %} 
                 required>
                 
-            <input id="{{ form.last_name.id_for_label }}" 
-                type="text" 
-                name="{{ form.last_name.name }}" 
-                maxlength="100" 
-                placeholder="Last name" 
+            <input id="{{ form.days.id_for_label }}" 
+                type="number" 
+                name="{{ form.days.name }}" 
+                maxlength="2" 
+                placeholder="Days" 
                 class="fadeIn second" 
-                {% if form.last_name.value != None %}
-                    value="{{ form.last_name.value|stringformat:'s' }}"
+                {% if form.days.value != None %}
+                    value="{{ form.days.value|stringformat:'s' }}"
                 {% endif %} 
-                required>
-
-            <input id="{{ form.username.id_for_label }}" 
-                type="text" 
-                name="{{ form.username.name }}" 
-                maxlength="100" 
-                placeholder="Username" 
-                class="fadeIn second" 
-                {% if form.username.value != None %}
-                    value="{{ form.username.value|stringformat:'s' }}"
-                {% endif %} 
-                required>
-
-            <input id="{{ form.alias.id_for_label }}" 
-                type="text" 
-                name="{{ form.alias.name }}" 
-                maxlength="4" 
-                placeholder="Alias" 
-                class="fadeIn second" 
-                {% if form.alias.value != None %}
-                    value="{{ form.alias.value|stringformat:'s' }}"
-                {% endif %} 
-                required>
-
-            <input id="{{ form.gift.id_for_label }}" 
-                type="text" 
-                name="{{ form.gift.name }}" 
-                maxlength="200" 
-                placeholder="Desired gift" 
-                class="fadeIn second" 
-                {% if form.gift.value != None %}
-                    value="{{ form.gift.value|stringformat:'s' }}"
-                {% endif %} 
-                required>
-
-            <input id="password1" 
-                type="password" 
-                name="password1" 
-                maxlength="100" 
-                placeholder="Password" 
-                class="fadeIn third" 
-                required>
-
-            <input id="password2" 
-                type="password" 
-                name="password2" 
-                maxlength="100" 
-                placeholder="Confirmed password" 
-                class="fadeIn third" 
                 required>
         </p>
         <input type="submit" name="submit">

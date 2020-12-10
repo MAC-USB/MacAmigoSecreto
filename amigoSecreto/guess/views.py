@@ -5,8 +5,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.views.generic import CreateView, TemplateView
 from django.utils.decorators import method_decorator
-from .models import UserData
-from .forms import SignUpForm
+from .models import *
+from .forms import *
 
 class SignInView(LoginView):
     """ Clase heredada de LoginView que representa la vista para el login."""
@@ -37,4 +37,20 @@ class WelcomeView(TemplateView):
     """ Clase heredada de TemplateView que representa la vista para la pagina principal.
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
+
+@method_decorator(login_required, name='dispatch')
+class CreateGameView(CreateView):
+    """ Clase heredada de CreateView que representa la vista para la creacion de una
+    instancia de juego."""
+    model = Game
+    form_class = GameForm
+    template_name = 'templates/game_form.html'
+
+    def form_valid(self, form):
+        '''
+        En este parte, si el formulario es valido guardamos lo que se 
+        obtiene de él.
+        '''
+        form.save()
+        return redirect('/')
 
