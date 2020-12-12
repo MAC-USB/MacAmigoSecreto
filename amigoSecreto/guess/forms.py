@@ -34,6 +34,42 @@ def create_teams():
     for villager in villagers:
         UserTeam(team=villagers_team, user=villager).save()
 
+def create_selections():
+    users, wolfs, villagers = [], [], []
+    for user in list(UserTeam.objects.all()):
+        users.append(user)
+        if str(user.team) == "Wolfs": wolfs.append(user)
+        else: villagers.append(user)
+
+    # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+    N = len(users)
+    shuffle(users)
+
+    # Creamos los grupos
+    S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
+    groups = []
+    for i in range(6):
+        groups.append(users[sum(S[:i]) : sum(S[:i+1])])
+    
+    # Creamos las opciones de cada jugador de cada seleccion
+    round_options = []
+    for i in range(6):
+        i_options = []
+        for user in groups[i]:
+            shuffle(wolfs)
+            shuffle(villagers)
+            if str(user.team) == "Wolfs": i_options.append(villagers[:3])
+            else: i_options.append(wolfs[:3])
+        round_options.append(i_options.copy())
+
+    for i in range(6):
+        print("\nGRUPO ", i)
+        for j, g in enumerate(groups[i]):
+            print(g, round_options[i][j])
+
+
+
+
 class SignUpForm(UserCreationForm):
     """ 
     Clase heredada de UserCreationFrom para registrar usuarios.
@@ -224,3 +260,4 @@ class GameForm(forms.ModelForm):
 
         # ****** CREAMOS LOS EQUIPOS
         create_teams()
+        create_selections()
