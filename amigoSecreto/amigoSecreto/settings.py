@@ -49,6 +49,12 @@ LOGIN_REDIRECT_URL = '/'
 
 LOGOUT_REDIRECT_URL = '/signin'
 
+USE_TZ = True   # TimeZone
+
+APSCHEDULER_DATETIME_FORMAT = 'd/m/Y'   #00/00/0000
+
+APSCHEDULER_RUN_NOW_TIMEOUT = 25  # Seconds
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -58,6 +64,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_apscheduler',
     'guess',
 ]
 

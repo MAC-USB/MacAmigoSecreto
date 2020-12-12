@@ -2,8 +2,37 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils.timezone import make_aware
 from .models import *
 from datetime import timedelta
+from random import shuffle
+
+def create_teams():
+    """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
+    creando las instancias de Team y UserTeam correspondientes."""
+    # Almacenamos la instancia de todos los jugadores
+    users = []
+    for u in User.objects.all():
+        users.append(u)
+    # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+    N = len(users)
+    indexes = [i for i in range(N)]
+    shuffle(indexes)
+    # Separamos en lobos y aldeanos.
+    wolfs = [users[i] for i in indexes[:N//2]]
+    villagers = [users[i] for i in indexes[N//2:]]
+
+    game = list(Game.objects.all())[-1]
+    # Creamos el equipo lobo
+    wolfs_team = Teams(game=game, name='Wolfs', score=0)
+    wolfs_team.save()
+    for wolf in wolfs:
+        UserTeam(team=wolfs_team, user=wolf).save()
+    # Creamos el equipo aldeano
+    villagers_team = Teams(game=game, name='Villagers', score=0)
+    villagers_team.save()
+    for villager in villagers:
+        UserTeam(team=villagers_team, user=villager).save()
 
 class SignUpForm(UserCreationForm):
     """ 
@@ -122,25 +151,43 @@ class GameForm(forms.ModelForm):
         return days
 
     def gen_round(self, startDate, days):
+        """ Genera las fechas de las selecciones de una ronda segun su fecha de inicio
+        y el tiempo que durara."""
         select_duration = days*4
         selections = [None]*6
         for i in range(6):
-            selections[i] = startDate + timedelta(hours = i*select_duration)
+            # Usamos make_aware para agregar la zona horaria
+            selections[i] = make_aware(startDate + timedelta(hours = i*select_duration))
         return selections
+
+    
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
-        # Aqui almacenaremos las rondas creadas
-        rounds = []
-        # Numero de dias que durara el juego
-        days = self.cleaned_data['days']
-        # Convertimos la fecha de inicio en un datetime.
+
+        # CREAMOS LA INSTANCIA DEL JUEGO.
+        # Fecha de inicil del juego
         startDate = self.cleaned_data['startDate']
         startDate = datetime.datetime(
             year=startDate.year,
             month=startDate.month,
             day=startDate.day
         )
+        # Numero de dias que durara el juego
+        days = self.cleaned_data['days']
+        # Fecha final.
+        endDate = startDate + timedelta(days=self.cleaned_data['days'])
+
+        game = Game(
+            startDate=make_aware(startDate),
+            days=self.cleaned_data['days'],
+            endDate=make_aware(endDate)
+        )
+        game.save()
+
+        # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
+        # Aqui almacenaremos las rondas creadas
+        rounds = []
 
         # Ronda 1
         if days in (9, 12): 
@@ -163,15 +210,6 @@ class GameForm(forms.ModelForm):
         elif days > 9: rounds.append(self.gen_round(startDate, 6))
         else: rounds.append(self.gen_round(startDate, 2))
 
-        # Almacenamos los datos del juego.
-        game = Game(
-            startDate=self.cleaned_data['startDate'],
-            days=self.cleaned_data['days'],
-            endDate=self.cleaned_data['startDate'] + \
-                timedelta(days=self.cleaned_data['days'])
-        )
-        game.save()
-
         # Almacenamos los datos de cada ronda.
         for i, r in enumerate(rounds):
             Round(
@@ -183,3 +221,6 @@ class GameForm(forms.ModelForm):
                 fifthSelection = r[4],
                 sixthSelection = r[5],
             ).save()
+
+        # ****** CREAMOS LOS EQUIPOS
+        create_teams()

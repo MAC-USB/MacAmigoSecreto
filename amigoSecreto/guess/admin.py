@@ -5,3 +5,7 @@ from .models import *
 admin.site.register(UserData)
 admin.site.register(Game)
 admin.site.register(Round)
+admin.site.register(Teams)
+admin.site.register(GivesTo)
+admin.site.register(UserTeam)
+admin.site.register(Guess)
