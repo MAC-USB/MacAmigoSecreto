@@ -6,6 +6,10 @@
 
     {% if user.is_authenticated %}
         <h1>Hola {{ user.username }}</h1>
+        {% if user.is_superuser %}
+            <a href="{% url 'create_game' %}">Crear juego</a>
+            <br>
+        {% endif %}
         <a href="{% url 'sign_out' %}">Cerrar sesión</a>
     {% else %}
     Fuera de aqui. Negro.
