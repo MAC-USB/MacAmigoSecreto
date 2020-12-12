@@ -15,14 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from guess.views import *
+from guess.urls import urlpatterns as guess_url_patterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', WelcomeView.as_view(), name='welcome'),
-    path('signup/', SignUpView.as_view(), name='sign_up'),
-    path('signin/', SignInView.as_view(), name='sign_in'),
-    path('signout/', SignOutView.as_view(), name='sign_out'),
-    path('create_game/', CreateGameView.as_view(), name='create_game'),
-]
+] + guess_url_patterns
 
