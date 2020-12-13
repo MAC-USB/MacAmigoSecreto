@@ -166,10 +166,20 @@ class GameForm(forms.ModelForm):
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
-    def get_set_options(self, gifters, round, options, first_selection):
-        """ Genera una funcion que actualiza la BD dada la seleccion actual."""
+    def get_set_options(self, group, round, options, first_selection):
+        """ 
+        Genera una funcion que actualiza la BD dada la seleccion actual. Dicha
+        funcion sera la que ejecutara un job en la fecha indicada.
+        INPUTS:
+            - group: Lista de instancias UserTeam, los cuales son los usuarios que
+                        van a intentar adivinar en esta ronda.
+            - round: Instancia de Round que representa la ronda actual.
+            - options: Conjunto de opciones que tiene cada usuario de group para hacer
+                        la adivinanza. options[i] corresponde a las opciones de group[i].
+            - first_selection: Indica si es la primera seleccion de la ronda.
+        """
         def set_options(
-            gifters=gifters,
+            group=group,
             round=round, 
             options=options, 
             first_selection=first_selection
@@ -200,9 +210,9 @@ class GameForm(forms.ModelForm):
             # Eliminamos las opciones de la seleccion anterior
             Options.objects.all().delete()
 
-            # Movemos los usuarios de gifters de NextToGuess a Guessing y agregamos
+            # Movemos los usuarios de group de NextToGuess a Guessing y agregamos
             # sus opciones correspondientes
-            for i, user in enumerate(gifters):
+            for i, user in enumerate(group):
                 next_to_guess.user_set.remove(user.user)
                 guessing.user_set.add(user.user)
                 Options(
@@ -215,44 +225,56 @@ class GameForm(forms.ModelForm):
         return set_options
     
 
-    def create_selections(self, round, r, k):
-        """ Calcula los grupos por selección y las opciones del usuario """
+    def create_selections(self, round, dates, k):
+        """ 
+        Calcula los grupos por selección y las opciones de adivinanza de los usuarios.
+        INPUTS:
+            - round: Instancia de Round que indica la ronda actual.
+            - dates: Conjunto de fechas en las que se ejecutara cada job.
+            * k: Variable que se usa para hacer pruebas.
+        """
         ###### EL ARGUMENTO k SOLO SE USA PARA LAS PRUEBAS
+        # Obtenemos la lista de usuarios que estan jugando, asi como los usuarios
+        # que pertenecen al equipo lobo y al equipo aldeano.
         users, wolfs, villagers = [], [], []
         for user in list(UserTeam.objects.all()):
             users.append(user)
             if user.team.name == "Wolfs": wolfs.append(user)
             else: villagers.append(user)
 
-        # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+        # Reorganizamos aleatoriamente los usuarios.
         N = len(users)
         shuffle(users)
 
-        # Creamos los grupos
+        # Calculamos el numero de usuarios que intentaran adivinar por cada seleccion.
         S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
         groups = []
         for i in range(6):
             groups.append(users[sum(S[:i]) : sum(S[:i+1])])
         
-        # Creamos las opciones de cada jugador de cada seleccion
+        # Creamos las opciones de cada jugador de cada seleccion.
         round_options = []
         for i in range(6):
             i_options = []
             for user in groups[i]:
+                # Reorganizamos aleatoriamente los lobos y los aldeanos.
                 shuffle(wolfs)
                 shuffle(villagers)
+                # Si el usuario es lobo, tomamos los primeros 3 aldeanos como sus opciones
                 if user.team.name == "Wolfs": i_options.append(villagers[:3])
+                # En caso contrario, tomamos los primeros 3 lobos como sus opciones.
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
 
         # Descomentar las siguientes 2 lineas para hacer pruebas
-        r = [datetime.now() + timedelta(seconds=10+k*60) + \
+        dates = [datetime.now() + timedelta(seconds=10+k*60) + \
             timedelta(seconds=10*i) for i in range(len(groups))]
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
+            # Creamos un job por cada seleccion.
             scheduler.add_job(
                 self.get_set_options(group, round, round_options[i], not bool(i)), 
-                DateTrigger(r[i])
+                DateTrigger(dates[i])
             )
         scheduler.start()
 
@@ -320,7 +342,7 @@ class GameForm(forms.ModelForm):
             next_to_guess.user_set.add(user)
 
         # Almacenamos los datos de cada ronda.
-        for i, r in enumerate(rounds):
+        for i, dates in enumerate(rounds):
             round = Round.objects.create(
                 game=game,
                 firstSelection = r[0],
@@ -331,4 +353,4 @@ class GameForm(forms.ModelForm):
                 sixthSelection = r[5],
             )
             round.save()
-            self.create_selections(round, r, i)
+            self.create_selections(round, dates, i)
