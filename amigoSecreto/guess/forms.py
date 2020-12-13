@@ -176,17 +176,21 @@ class GameForm(forms.ModelForm):
             guessed = Group.objects.get(name='Guessed')
             next_to_guess = Group.objects.get(name='NextToGuess')
 
+            # Obtenemos el juego y el ID de los teams
+            game = round.game
+            team_ids = game.teams_set.values_list('id', flat=True)
+
             if first_selection:
                 # Si es la primera seleccion, sacamos a todos los usuarios de Guessed y Guessing
                 # y agregamos a todos los usuarios a NextToGuess
                 guessing.user_set.clear()
                 guessed.user_set.clear()
-                for user in list(User.objects.all()):
-                    next_to_guess.user_set.add(user)
+                # Solo para los usuarios que pertenecen al juego actual
+                for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+                    next_to_guess.user_set.add(user_team_pair.user)
             else:
-                
                 # En caso contrario, movemos los usuarios de Guessing a Guessed
-                for user in list(guessing.user_set.all()):
+                for user in guessing.user_set.all():
                     guessing.user_set.remove(user)
                     guessed.user_set.add(user)
 
