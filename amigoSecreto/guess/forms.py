@@ -68,8 +68,6 @@ def create_selections():
             print(g, round_options[i][j])
 
 
-
-
 class SignUpForm(UserCreationForm):
     """ 
     Clase heredada de UserCreationFrom para registrar usuarios.
@@ -286,9 +284,5 @@ class GameForm(forms.ModelForm):
             ).save()
 
         # ****** CREAMOS LOS EQUIPOS
-<<<<<<< HEAD
         create_teams()
         create_selections()
-=======
-        self.create_teams()
->>>>>>> 965caaa537563d7ada05ab9d9ef90644fdae8dd1
