@@ -7,33 +7,6 @@ from .models import *
 from datetime import timedelta
 from random import shuffle
 
-def create_teams():
-    """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
-    creando las instancias de Team y UserTeam correspondientes."""
-    # Almacenamos la instancia de todos los jugadores
-    users = []
-    for u in User.objects.all():
-        users.append(u)
-    # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
-    N = len(users)
-    indexes = [i for i in range(N)]
-    shuffle(indexes)
-    # Separamos en lobos y aldeanos.
-    wolfs = [users[i] for i in indexes[:N//2]]
-    villagers = [users[i] for i in indexes[N//2:]]
-
-    game = list(Game.objects.all())[-1]
-    # Creamos el equipo lobo
-    wolfs_team = Teams(game=game, name='Wolfs', score=0)
-    wolfs_team.save()
-    for wolf in wolfs:
-        UserTeam(team=wolfs_team, user=wolf).save()
-    # Creamos el equipo aldeano
-    villagers_team = Teams(game=game, name='Villagers', score=0)
-    villagers_team.save()
-    for villager in villagers:
-        UserTeam(team=villagers_team, user=villager).save()
-
 class SignUpForm(UserCreationForm):
     """ 
     Clase heredada de UserCreationFrom para registrar usuarios.
@@ -141,7 +114,7 @@ class GameForm(forms.ModelForm):
     def clean_startDate(self):
         """ Guarda la fecha de inicio del juego."""
         startDate = self.cleaned_data['startDate']
-        if startDate < datetime.date.today():
+        if startDate <= datetime.date.today():
             raise forms.ValidationError('The date must be at least tomorrow.')
         return startDate
 
@@ -160,7 +133,34 @@ class GameForm(forms.ModelForm):
             selections[i] = make_aware(startDate + timedelta(hours = i*select_duration))
         return selections
 
-    
+    def create_teams():
+        """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
+        creando las instancias de Team y UserTeam correspondientes."""
+        # Almacenamos la instancia de todos los jugadores
+        # TODO hay que definir aquí si van a ser todos los usuarios o si el superusuario los va agregando
+        users = list(User.objects.all())
+
+        # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+        N = len(users)
+        indexes = [i for i in range(N)]
+        shuffle(indexes)
+
+        # Separamos en lobos y aldeanos.
+        wolfs = [users[i] for i in indexes[:N//2]]
+        villagers = [users[i] for i in indexes[N//2:]]
+
+        # El último juego creado es el activo
+        game = Game.objects.latest('startDate')
+
+        # Creamos el equipo lobo para el juego actual
+        wolfs_team = Teams.objects.get_or_create(game=game, name='Wolfs')#, score=0)
+        for wolf in wolfs:
+            UserTeam.objects.create(team=wolfs_team, user=wolf)
+
+        # Creamos el equipo aldeano para el juego actual
+        villagers_team = Teams.objects.get_or_create(game=game, name='Villagers')#, score=0)
+        for villager in villagers:
+            UserTeam.objects.create(team=villagers_team, user=villager)
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
@@ -223,4 +223,4 @@ class GameForm(forms.ModelForm):
             ).save()
 
         # ****** CREAMOS LOS EQUIPOS
-        create_teams()
+        self.create_teams()
