@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils.timezone import make_aware
 from .models import *
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.date import DateTrigger
 from datetime import timedelta
 from random import shuffle
 
@@ -137,7 +139,8 @@ class GameForm(forms.ModelForm):
         """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
         creando las instancias de Team y UserTeam correspondientes."""
         # Almacenamos la instancia de todos los jugadores
-        # TODO hay que definir aquí si van a ser todos los usuarios o si el superusuario los va agregando
+        # TODO hay que definir aquí si van a ser todos los usuarios o si el superusuario los 
+        # va agregando
         users = list(User.objects.all())
 
         # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
@@ -153,16 +156,29 @@ class GameForm(forms.ModelForm):
         game = Game.objects.latest('startDate')
 
         # Creamos el equipo lobo para el juego actual
-        wolfs_team = Teams.objects.get_or_create(game=game, name='Wolfs')#, score=0)
+        wolfs_team = Teams.objects.get_or_create(game=game, name='Wolfs')[0]#, score=0)
         for wolf in wolfs:
             UserTeam.objects.create(team=wolfs_team, user=wolf)
 
         # Creamos el equipo aldeano para el juego actual
-        villagers_team = Teams.objects.get_or_create(game=game, name='Villagers')#, score=0)
+        villagers_team = Teams.objects.get_or_create(game=game, name='Villagers')[0]#, score=0)
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
-    def create_selections(self, round):
+    def set_options(self, gifters, options):
+        # TODO modificar esta funcion para que haga lo que tenga que hacer con los usuarios
+        # y sus opciones de adivinanzas
+        def print_selections(gifters=gifters, options=options):
+            print("SELECTION")
+            for i, g in enumerate(gifters):
+                text = str(g.user) + " (" + str(g.team) + ") tiene la opcion de regalarles a: " 
+                for o in options[i]:
+                    text += str(o.user) + " (" + str(o.team) + "), "
+                print(text)
+            print("\n")
+        return print_selections
+
+    def create_selections(self, round, k):
         """ Calcula los grupos por selección y las opciones del usuario """
         users, wolfs, villagers = [], [], []
         for user in list(UserTeam.objects.all()):
@@ -191,12 +207,27 @@ class GameForm(forms.ModelForm):
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
 
-        for i in range(6):
-            print("\nGRUPO ", i)
-            for j, g in enumerate(groups[i]):
-                print(g, round_options[i][j])
-        
-        # TODO crear jobs
+        # PARA PROBAR QUE EL SCHEDULER ESTE FURULANDO
+        """
+        date = datetime.datetime.now() + datetime.timedelta(seconds=10+k*60)
+        scheduler = BackgroundScheduler()
+        for i, group in enumerate(groups):
+            scheduler.add_job(
+                self.set_options(group, round_options[i]), 
+                DateTrigger(date + datetime.timedelta(seconds=10*i))
+            )
+        scheduler.start()
+        """
+
+        scheduler = BackgroundScheduler()
+        for i, group in enumerate(groups):
+            scheduler.add_job(
+                self.set_options(group, round_options[i]), 
+                DateTrigger(round[i])
+            )
+        scheduler.start()
+
+
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
@@ -246,9 +277,12 @@ class GameForm(forms.ModelForm):
         elif days > 9: rounds.append(self.gen_round(startDate, 6))
         else: rounds.append(self.gen_round(startDate, 2))
 
+        # CREAMOS LOS EQUIPOS
+        self.create_teams()
+
         # Almacenamos los datos de cada ronda.
         for i, r in enumerate(rounds):
-            Round(
+            round = Round.objects.create(
                 game=game,
                 firstSelection = r[0],
                 secondSelection = r[1],
@@ -256,8 +290,6 @@ class GameForm(forms.ModelForm):
                 fourthSelection = r[3],
                 fifthSelection = r[4],
                 sixthSelection = r[5],
-            ).save()
-
-        # ****** CREAMOS LOS EQUIPOS
-        self.create_teams()
-        self.create_selections()
+            )
+            round.save()
+            self.create_selections(r, i)
