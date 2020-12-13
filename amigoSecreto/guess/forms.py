@@ -164,9 +164,13 @@ class GameForm(forms.ModelForm):
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
-    def get_set_options(self, gifters, options, first_selection):
-        def set_options(gifters=gifters, options=options, first_selection=first_selection):
-            # TODO hacer algo con las opciones de adivinanza.
+    def get_set_options(self, gifters, round, options, first_selection):
+        def set_options(
+            gifters=gifters,
+            round=round, 
+            options=options, 
+            first_selection=first_selection
+        ):
             # Obtenemos los 3 grupos
             guessing = Group.objects.get(name='Guessing')
             guessed = Group.objects.get(name='Guessed')
@@ -186,22 +190,27 @@ class GameForm(forms.ModelForm):
                     guessing.user_set.remove(user)
                     guessed.user_set.add(user)
 
-            # Movemos los usuarios de gifters de NextToGuess a Guessing
-            for user in gifters:
+            # Eliminamos las opciones de la seleccion anterior
+            Options.objects.all().delete()
+
+            # Movemos los usuarios de gifters de NextToGuess a Guessing y agregamos
+            # sus opciones correspondientes
+            for i, user in enumerate(gifters):
                 next_to_guess.user_set.remove(user.user)
                 guessing.user_set.add(user.user)
-
-            print("NEXT TO GUESS (", len(list(next_to_guess.user_set.all())), "):")
-            print(list(next_to_guess.user_set.all()))
-            print("GUESSING (", len(list(guessing.user_set.all())), "):")
-            print(list(guessing.user_set.all()))
-            print("GUESSED (", len(list(guessed.user_set.all())), "):")
-            print(list(guessed.user_set.all()), "\n\n")
+                Options(
+                    round=round,
+                    user=user.user,
+                    option1 = options[i][0].user,
+                    option2 = options[i][1].user,
+                    option3 = options[i][2].user,
+                ).save()
         return set_options
     
 
-    def create_selections(self, round, k):
+    def create_selections(self, round, r, k):
         """ Calcula los grupos por selección y las opciones del usuario """
+        ###### EL ARGUMENTO k SOLO SE USA PARA LAS PRUEBAS
         users, wolfs, villagers = [], [], []
         for user in list(UserTeam.objects.all()):
             users.append(user)
@@ -229,24 +238,16 @@ class GameForm(forms.ModelForm):
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
 
-        # PARA PROBAR QUE EL SCHEDULER ESTE FURULANDO
-        date = datetime.now() + timedelta(seconds=10+k*60)
+        # Descomentar las siguientes 2 lineas para hacer pruebas
+        r = [datetime.now() + timedelta(seconds=10+k*60) + \
+            timedelta(seconds=10*i) for i in range(len(groups))]
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             scheduler.add_job(
-                self.get_set_options(group, round_options[i], not bool(i)), 
-                DateTrigger(date + timedelta(seconds=10*i))
+                self.get_set_options(group, round, round_options[i], not bool(i)), 
+                DateTrigger(r[i])
             )
         scheduler.start()
-
-        """
-        scheduler = BackgroundScheduler()
-        for i, group in enumerate(groups):
-            scheduler.add_job(
-                self.get_set_options(group, round_options[i], not bool(i)), 
-                DateTrigger(round[i])
-            )
-        scheduler.start()"""
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
@@ -323,4 +324,4 @@ class GameForm(forms.ModelForm):
                 sixthSelection = r[5],
             )
             round.save()
-            self.create_selections(r, i)
+            self.create_selections(round, r, i)

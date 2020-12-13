@@ -3,7 +3,6 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from . import updater
 from datetime import timedelta, date, datetime
 
 class Game(models.Model):
@@ -67,3 +66,6 @@ class Options(models.Model):
     option1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option1')
     option2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option2')
     option3 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option3')
+
+    def __str__(self):
+        return f"{self.user} have options {self.option1}, {self.option2} and {self.option3}"
