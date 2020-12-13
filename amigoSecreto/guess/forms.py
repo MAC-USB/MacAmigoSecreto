@@ -202,43 +202,47 @@ class GameForm(forms.ModelForm):
             for i, user in enumerate(gifters):
                 next_to_guess.user_set.remove(user.user)
                 guessing.user_set.add(user.user)
-                Options(
+                Options.objects.create(
                     round=round,
                     user=user.user,
                     option1 = options[i][0].user,
                     option2 = options[i][1].user,
                     option3 = options[i][2].user,
-                ).save()
+                )
         return set_options
     
 
     def create_selections(self, round, r, k):
         """ Calcula los grupos por selección y las opciones del usuario """
         ###### EL ARGUMENTO k SOLO SE USA PARA LAS PRUEBAS
-        users, wolfs, villagers = [], [], []
-        for user in list(UserTeam.objects.all()):
-            users.append(user)
-            if user.team.name == "Wolfs": wolfs.append(user)
-            else: villagers.append(user)
+        userteam_instances, wolfs, villagers = [], [], []
+        # Obtenemos el juego y el ID de los teams
+        game = round.game
+        team_ids = game.teams_set.values_list('id', flat=True)
+        # Obtener los del juego actual
+        for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+            userteam_instances.append(user_team_pair)
+            if user_team_pair.team.name == "Wolfs": wolfs.append(user_team_pair)
+            else: villagers.append(user_team_pair)
 
         # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
-        N = len(users)
-        shuffle(users)
+        N = len(userteam_instances)
+        shuffle(userteam_instances)
 
         # Creamos los grupos
         S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
         groups = []
         for i in range(6):
-            groups.append(users[sum(S[:i]) : sum(S[:i+1])])
+            groups.append(userteam_instances[sum(S[:i]) : sum(S[:i+1])])
         
         # Creamos las opciones de cada jugador de cada seleccion
         round_options = []
         for i in range(6):
             i_options = []
-            for user in groups[i]:
+            for user_team_pair in groups[i]:
                 shuffle(wolfs)
                 shuffle(villagers)
-                if user.team.name == "Wolfs": i_options.append(villagers[:3])
+                if user_team_pair.team.name == "Wolfs": i_options.append(villagers[:3])
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
 
@@ -269,12 +273,12 @@ class GameForm(forms.ModelForm):
         # Fecha final.
         endDate = startDate + timedelta(days=self.cleaned_data['days'])
 
-        game = Game(
+        game = Game.objects.create(
             startDate=make_aware(startDate),
             days=self.cleaned_data['days'],
             endDate=make_aware(endDate)
         )
-        game.save()
+        # game.save()
 
         # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
         # Aqui almacenaremos las rondas creadas
@@ -313,8 +317,9 @@ class GameForm(forms.ModelForm):
         next_to_guess.user_set.clear()
 
         # COLOCAMOS TODOS LOS USUARIOS EN NextToGuess
-        for user in list(User.objects.all()):
-            next_to_guess.user_set.add(user)
+        team_ids = game.teams_set.values_list('id', flat=True)
+        for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+            next_to_guess.user_set.add(user_team_pair.user)
 
         # Almacenamos los datos de cada ronda.
         for i, r in enumerate(rounds):
@@ -327,5 +332,5 @@ class GameForm(forms.ModelForm):
                 fifthSelection = r[4],
                 sixthSelection = r[5],
             )
-            round.save()
+            # round.save()
             self.create_selections(round, r, i)
