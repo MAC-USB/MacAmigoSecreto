@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.views import LoginView, LogoutView
-from django.contrib.auth.models import User 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.models import User
+# from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.generic import CreateView, TemplateView
 from django.utils.decorators import method_decorator
 from .models import *
@@ -33,19 +34,23 @@ class SignOutView(LogoutView):
     """ Clase heredada de LogoutView que representa la vista para el cierre de sesion."""
     pass
 
-@method_decorator(login_required, name='dispatch')
-class WelcomeView(TemplateView):
+class WelcomeView(LoginRequiredMixin, TemplateView):
     """ Clase heredada de TemplateView que representa la vista para la pagina principal.
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
 
-@method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')
-class CreateGameView(CreateView):
+class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """ Clase heredada de CreateView que representa la vista para la creacion de una
     instancia de juego."""
     model = Game
     form_class = GameForm
     template_name = 'templates/game_form.html'
+
+    def test_func(self):
+        """ Función para usar con UserPassesTestMixin.
+            Permite solo a superusuarios
+        """
+        return self.request.user.is_superuser
 
     def form_valid(self, form):
         '''
@@ -54,4 +59,3 @@ class CreateGameView(CreateView):
         '''
         form.save()
         return redirect('/')
-
