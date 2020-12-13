@@ -60,3 +60,10 @@ class Round(models.Model):
     fourthSelection = models.DateTimeField()
     fifthSelection = models.DateTimeField()
     sixthSelection = models.DateTimeField()
+
+class Options(models.Model):
+    round = models.ForeignKey(Round, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    option1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option1')
+    option2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option2')
+    option3 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='option3')
