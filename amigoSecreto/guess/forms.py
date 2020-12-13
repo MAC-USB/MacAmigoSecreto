@@ -7,6 +7,7 @@ from .models import *
 from datetime import timedelta
 from random import shuffle
 
+<<<<<<< HEAD
 def create_teams():
     """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
     creando las instancias de Team y UserTeam correspondientes."""
@@ -68,6 +69,8 @@ def create_selections():
             print(g, round_options[i][j])
 
 
+=======
+>>>>>>> 61b407f343bd273bdb19cfe49b608106f1f08f67
 class SignUpForm(UserCreationForm):
     """ 
     Clase heredada de UserCreationFrom para registrar usuarios.
@@ -134,7 +137,7 @@ class SignUpForm(UserCreationForm):
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
         if password1 and password2 and password1 != password2:
-            raise ValidationError("Password don't match")
+            raise ValidationError("Passwords don't match")
         return password2
 
     def save(self, commit: bool = True):
@@ -146,11 +149,11 @@ class SignUpForm(UserCreationForm):
             first_name=self.cleaned_data['first_name'],
             last_name=self.cleaned_data['last_name']
         )
-        UserData(
+        UserData.objects.create(
             user=user,
             alias=self.cleaned_data['alias'],
             gift=self.cleaned_data['gift'],
-        ).save()
+        )
         return user
 
 class GameForm(forms.ModelForm):
@@ -223,6 +226,42 @@ class GameForm(forms.ModelForm):
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
+    def create_selections(round):
+        """ Calcula los grupos por selección y las opciones del usuario """
+        users, wolfs, villagers = [], [], []
+        for user in list(UserTeam.objects.all()):
+            users.append(user)
+            if user.team.name == "Wolfs": wolfs.append(user)
+            else: villagers.append(user)
+
+        # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+        N = len(users)
+        shuffle(users)
+
+        # Creamos los grupos
+        S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
+        groups = []
+        for i in range(6):
+            groups.append(users[sum(S[:i]) : sum(S[:i+1])])
+        
+        # Creamos las opciones de cada jugador de cada seleccion
+        round_options = []
+        for i in range(6):
+            i_options = []
+            for user in groups[i]:
+                shuffle(wolfs)
+                shuffle(villagers)
+                if user.team.name == "Wolfs": i_options.append(villagers[:3])
+                else: i_options.append(wolfs[:3])
+            round_options.append(i_options.copy())
+
+        for i in range(6):
+            print("\nGRUPO ", i)
+            for j, g in enumerate(groups[i]):
+                print(g, round_options[i][j])
+        
+        # TODO crear jobs
+
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
 
@@ -239,12 +278,11 @@ class GameForm(forms.ModelForm):
         # Fecha final.
         endDate = startDate + timedelta(days=self.cleaned_data['days'])
 
-        game = Game(
+        game = Game.objects.create(
             startDate=make_aware(startDate),
             days=self.cleaned_data['days'],
             endDate=make_aware(endDate)
         )
-        game.save()
 
         # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
         # Aqui almacenaremos las rondas creadas
@@ -273,7 +311,7 @@ class GameForm(forms.ModelForm):
 
         # Almacenamos los datos de cada ronda.
         for i, r in enumerate(rounds):
-            Round(
+            round = Round.objects.create(
                 game=game,
                 firstSelection = r[0],
                 secondSelection = r[1],
@@ -281,8 +319,13 @@ class GameForm(forms.ModelForm):
                 fourthSelection = r[3],
                 fifthSelection = r[4],
                 sixthSelection = r[5],
-            ).save()
+            )
+            self.create_selections(round)
 
         # ****** CREAMOS LOS EQUIPOS
+<<<<<<< HEAD
         create_teams()
         create_selections()
+=======
+        self.create_teams()
+>>>>>>> 61b407f343bd273bdb19cfe49b608106f1f08f67
