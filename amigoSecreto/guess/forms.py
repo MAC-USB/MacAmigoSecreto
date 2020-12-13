@@ -127,6 +127,8 @@ class GameForm(forms.ModelForm):
     def gen_round(self, startDate, days):
         """ Genera las fechas de las selecciones de una ronda segun su fecha de inicio
         y el tiempo que durara."""
+        # Las selecciones duran en horas 4 veces el numero de dias que dura la ronda.
+        # Ronda de 2, 3, 6 dias -> selecciones de 8, 12, 24 horas respectivamente.
         select_duration = days*4
         selections = [None]*6
         for i in range(6):
@@ -165,6 +167,7 @@ class GameForm(forms.ModelForm):
             UserTeam.objects.create(team=villagers_team, user=villager)
 
     def get_set_options(self, gifters, round, options, first_selection):
+        """ Genera una funcion que actualiza la BD dada la seleccion actual."""
         def set_options(
             gifters=gifters,
             round=round, 
