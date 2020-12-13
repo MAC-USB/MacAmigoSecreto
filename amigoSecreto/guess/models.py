@@ -4,13 +4,13 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from . import updater
-import datetime
+from datetime import timedelta, date, datetime
 
 class Game(models.Model):
     startDate = models.DateTimeField()
     days = models.PositiveSmallIntegerField(
         default=6, validators=[MinValueValidator(6), MaxValueValidator(12)])
-    endDate = models.DateTimeField(default=datetime.date.today)
+    endDate = models.DateTimeField(default=date.today)
 
     def __str__(self):
         return f"Game of {self.startDate}"

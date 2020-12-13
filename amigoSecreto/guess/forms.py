@@ -1,12 +1,11 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.utils.timezone import make_aware
 from .models import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
-from datetime import timedelta
 from random import shuffle
 
 class SignUpForm(UserCreationForm):
@@ -101,7 +100,7 @@ class GameForm(forms.ModelForm):
         - startDate: Fecha de inicio del juego.
         - days: Numero de juegos que durara el juego.
     """
-    startDate = forms.DateField(initial=datetime.date.today() + timedelta(days=1))
+    startDate = forms.DateField(initial=date.today() + timedelta(days=1))
     days = forms.IntegerField(min_value=6, max_value=12)
 
     class Meta:
@@ -116,7 +115,7 @@ class GameForm(forms.ModelForm):
     def clean_startDate(self):
         """ Guarda la fecha de inicio del juego."""
         startDate = self.cleaned_data['startDate']
-        if startDate <= datetime.date.today():
+        if startDate <= date.today():
             raise forms.ValidationError('The date must be at least tomorrow.')
         return startDate
 
@@ -165,18 +164,41 @@ class GameForm(forms.ModelForm):
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
-    def set_options(self, gifters, options):
-        # TODO modificar esta funcion para que haga lo que tenga que hacer con los usuarios
-        # y sus opciones de adivinanzas
-        def print_selections(gifters=gifters, options=options):
-            print("SELECTION")
-            for i, g in enumerate(gifters):
-                text = str(g.user) + " (" + str(g.team) + ") tiene la opcion de regalarles a: " 
-                for o in options[i]:
-                    text += str(o.user) + " (" + str(o.team) + "), "
-                print(text)
-            print("\n")
-        return print_selections
+    def get_set_options(self, gifters, options, first_selection):
+        def set_options(gifters=gifters, options=options, first_selection=first_selection):
+            # TODO hacer algo con las opciones de adivinanza.
+            # Obtenemos los 3 grupos
+            guessing = Group.objects.get(name='Guessing')
+            guessed = Group.objects.get(name='Guessed')
+            next_to_guess = Group.objects.get(name='NextToGuess')
+
+            if first_selection:
+                # Si es la primera seleccion, sacamos a todos los usuarios de Guessed y Guessing
+                # y agregamos a todos los usuarios a NextToGuess
+                guessing.user_set.clear()
+                guessed.user_set.clear()
+                for user in list(User.objects.all()):
+                    next_to_guess.user_set.add(user)
+            else:
+                
+                # En caso contrario, movemos los usuarios de Guessing a Guessed
+                for user in list(guessing.user_set.all()):
+                    guessing.user_set.remove(user)
+                    guessed.user_set.add(user)
+
+            # Movemos los usuarios de gifters de NextToGuess a Guessing
+            for user in gifters:
+                next_to_guess.user_set.remove(user.user)
+                guessing.user_set.add(user.user)
+
+            print("NEXT TO GUESS (", len(list(next_to_guess.user_set.all())), "):")
+            print(list(next_to_guess.user_set.all()))
+            print("GUESSING (", len(list(guessing.user_set.all())), "):")
+            print(list(guessing.user_set.all()))
+            print("GUESSED (", len(list(guessed.user_set.all())), "):")
+            print(list(guessed.user_set.all()), "\n\n")
+        return set_options
+    
 
     def create_selections(self, round, k):
         """ Calcula los grupos por selección y las opciones del usuario """
@@ -208,26 +230,23 @@ class GameForm(forms.ModelForm):
             round_options.append(i_options.copy())
 
         # PARA PROBAR QUE EL SCHEDULER ESTE FURULANDO
-        """
-        date = datetime.datetime.now() + datetime.timedelta(seconds=10+k*60)
+        date = datetime.now() + timedelta(seconds=10+k*60)
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             scheduler.add_job(
-                self.set_options(group, round_options[i]), 
-                DateTrigger(date + datetime.timedelta(seconds=10*i))
+                self.get_set_options(group, round_options[i], not bool(i)), 
+                DateTrigger(date + timedelta(seconds=10*i))
             )
         scheduler.start()
-        """
 
+        """
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             scheduler.add_job(
-                self.set_options(group, round_options[i]), 
+                self.get_set_options(group, round_options[i], not bool(i)), 
                 DateTrigger(round[i])
             )
-        scheduler.start()
-
-
+        scheduler.start()"""
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
@@ -235,7 +254,7 @@ class GameForm(forms.ModelForm):
         # CREAMOS LA INSTANCIA DEL JUEGO.
         # Fecha de inicil del juego
         startDate = self.cleaned_data['startDate']
-        startDate = datetime.datetime(
+        startDate = datetime(
             year=startDate.year,
             month=startDate.month,
             day=startDate.day
@@ -279,6 +298,18 @@ class GameForm(forms.ModelForm):
 
         # CREAMOS LOS EQUIPOS
         self.create_teams()
+
+        # SACAMOS A TODOS LOS USUARIOS DE TODOS LOS GRUPOS
+        guessing = Group.objects.get(name='Guessing')
+        guessed = Group.objects.get(name='Guessed')
+        next_to_guess = Group.objects.get(name='NextToGuess')
+        guessing.user_set.clear()
+        guessed.user_set.clear()
+        next_to_guess.user_set.clear()
+
+        # COLOCAMOS TODOS LOS USUARIOS EN NextToGuess
+        for user in list(User.objects.all()):
+            next_to_guess.user_set.add(user)
 
         # Almacenamos los datos de cada ronda.
         for i, r in enumerate(rounds):
