@@ -4,7 +4,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 # from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.generic import CreateView, TemplateView
+from django.views.generic import CreateView, TemplateView, ListView
 from django.utils.decorators import method_decorator
 from .models import *
 from .forms import *
@@ -82,3 +82,62 @@ class GuessView(LoginRequiredMixin, CreateView):
     def test_func(self):
         # TODO verificar que el usuario esta en Guessing.
         return True
+
+class HistoryView(LoginRequiredMixin, TemplateView):
+    template_name = 'templates/history.html'
+
+    def get_context_data(self, **kwargs):
+
+        class Group:
+            """ En cada Group guardaremos los owners y los gifters de cada guess
+            si pertenecen al mismo selection. """
+            def __init__(self):
+                self.owners = []
+                self.gifters = []
+
+        context = super().get_context_data(**kwargs)
+
+        # Obtenemos el juego actual
+        game = Game.objects.latest('startDate')
+
+        # Obtenemos los guess del juego actual
+        context['Guess'] = list(Guess.objects.filter(game=game))
+
+        # Obtenemos las fechas de cada seleccion de cada ronda del juego actual
+        dates = []
+        rounds = list(Round.objects.filter(game=game))
+        for round in rounds:
+            dates += [
+                round.firstSelection, 
+                round.secondSelection, 
+                round.thirdSelection, 
+                round.fourthSelection, 
+                round.fifthSelection, 
+                round.sixthSelection
+            ]
+
+        # En esta variable guardaremos cada grupo de guesses
+        group_selections = [Group()]
+        # date indica el indice de dates en el que nos encontramos actualmente.
+        date = 1
+        for guess in context['Guess']:
+            # Si el guess actual se realizo luego de la fecha actual, significa 
+            # que debemos pasar al siguiente grupo.
+            if guess.date >= dates[date]:
+                # Elegimos la siguiente fecha hasta que sea mayor al guess actual.
+                while guess.date >= dates[date]: date += 1
+                # Creamos un nuevo grupo solo si el actual no esta vacio.
+                if len(group_selections[-1].gifters) > 0:
+                    group_selections.append(Group())
+            
+            # Agregamos el gifter y el owner al grupo actual.
+            group_selections[-1].gifters.append(guess.gifter)
+            group_selections[-1].owners.append(guess.owner)
+
+        # Reordenamos aleatoriamente cada grupo.
+        for group in group_selections:
+            shuffle(group.gifters)
+            shuffle(group.owners)
+
+        context['Groups'] = group_selections
+        return context

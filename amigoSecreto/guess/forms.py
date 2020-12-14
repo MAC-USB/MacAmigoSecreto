@@ -310,7 +310,7 @@ class GameForm(forms.ModelForm):
             days=self.cleaned_data['days'],
             endDate=make_aware(endDate)
         )
-        # game.save()
+        game.save()
 
         # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
         # Aqui almacenaremos las rondas creadas

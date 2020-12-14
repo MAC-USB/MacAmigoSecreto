@@ -51,8 +51,11 @@ class Guess(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='guess_owner')
     gifter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='guess_gifter')
     gifted = models.ForeignKey(User, on_delete=models.CASCADE, related_name='guess_gifted')
-    date = models.DateTimeField(User)
+    date = models.DateTimeField()
     answer = models.BooleanField()
+
+    def __str__(self):
+        return f"{self.owner} asked if {self.gifter} gives to {self.gifted}. Answer: {self.answer}."
 
 class Round(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
