@@ -36,6 +36,9 @@ class GivesTo(models.Model):
     gifter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gifter')
     gifted = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gifted')
 
+    def __str__(self):
+        return f"{self.gifter} give to {self.gifted}"
+
 class UserTeam(models.Model):
     team = models.ForeignKey(Teams, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

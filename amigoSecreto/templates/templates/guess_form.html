@@ -367,28 +367,7 @@
       <!-- Login Form -->
       <form method="POST">
         {% csrf_token %}
-        <p>
-            <input id="{{ form.startDate.id_for_label }}" 
-                type="date" 
-                name="{{ form.startDate.name }}" 
-                placeholder="Start date" 
-                class="fadeIn second" 
-                {% if form.startDate.value != None %} 
-                    value="{{ form.startDate.value|stringformat:'s' }}"
-                {% endif %} 
-                required>
-                
-            <input id="{{ form.days.id_for_label }}" 
-                type="number" 
-                name="{{ form.days.name }}" 
-                maxlength="2" 
-                placeholder="Days" 
-                class="fadeIn second" 
-                {% if form.days.value != None %}
-                    value="{{ form.days.value|stringformat:'s' }}"
-                {% endif %} 
-                required>
-        </p>
+        {{ form.as_p }}
         <input type="submit" name="submit">
         {% if form.errors %}
             {% for field in form %}

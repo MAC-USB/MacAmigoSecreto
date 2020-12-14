@@ -59,3 +59,26 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         '''
         form.save()
         return redirect('/')
+
+class GuessView(LoginRequiredMixin, CreateView):
+    model = Guess
+    template_name = 'templates/guess_form.html'
+    form_class = GuessForm
+
+    def get_form_kwargs(self):
+        # Esto lo puse para acceder al usuario registrado desde el form.
+        kwargs = super(GuessView, self).get_form_kwargs()
+        kwargs.update({'user': self.request.user})
+        return kwargs
+
+    def form_valid(self, form):
+        '''
+        En este parte, si el formulario es valido guardamos lo que se 
+        obtiene de él.
+        '''
+        form.save()
+        return redirect('/')
+
+    def test_func(self):
+        # TODO verificar que el usuario esta en Guessing.
+        return True
