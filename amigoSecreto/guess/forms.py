@@ -6,7 +6,7 @@ from django.utils.timezone import make_aware
 from .models import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
-from random import shuffle
+from random import shuffle, choices
 
 class SignUpForm(UserCreationForm):
     """ 
@@ -166,6 +166,16 @@ class GameForm(forms.ModelForm):
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager)
 
+        ##### ------------ REPRESENTACION DEL POTE DE EAS ------------ #####
+        shuffle(wolfs)
+        shuffle(villagers)
+        for i in range(len(wolfs)):
+            GivesTo.objects.create(game=game, gifter=wolfs[i], gifted=villagers[i])
+        shuffle(wolfs)
+        shuffle(villagers)
+        for i in range(len(wolfs)):
+            GivesTo.objects.create(game=game, gifted=wolfs[i], gifter=villagers[i])
+
     def get_set_options(self, group, round, options, first_selection):
         """ 
         Genera una funcion que actualiza la BD dada la seleccion actual. Dicha
@@ -224,7 +234,6 @@ class GameForm(forms.ModelForm):
                 )
         return set_options
     
-
     def create_selections(self, round, dates, k):
         """ 
         Calcula los grupos por selección y las opciones de adivinanza de los usuarios.
@@ -269,8 +278,8 @@ class GameForm(forms.ModelForm):
             round_options.append(i_options.copy())
 
         # Descomentar las siguientes 2 lineas para hacer pruebas
-        dates = [datetime.now() + timedelta(seconds=10+k*60) + \
-            timedelta(seconds=10*i) for i in range(len(groups))]
+        dates = [datetime.now() + timedelta(hours=k*6) + \
+            timedelta(hours=i) for i in range(len(groups))]
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             # Creamos un job por cada seleccion.
@@ -348,12 +357,94 @@ class GameForm(forms.ModelForm):
         for i, dates in enumerate(rounds):
             round = Round.objects.create(
                 game=game,
-                firstSelection = r[0],
-                secondSelection = r[1],
-                thirdSelection = r[2],
-                fourthSelection = r[3],
-                fifthSelection = r[4],
-                sixthSelection = r[5],
+                firstSelection = dates[0],
+                secondSelection = dates[1],
+                thirdSelection = dates[2],
+                fourthSelection = dates[3],
+                fifthSelection = dates[4],
+                sixthSelection = dates[5],
             )
             # round.save()
             self.create_selections(round, dates, i)
+
+class GuessForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(GuessForm, self).__init__(*args, **kwargs)
+
+        # Obtenemos las opciones del jugador para elegir a quien adivinar.
+        gifter_options = Options.objects.filter(user=self.user)[0]
+        # Obtenemos los UserData de cada opcion
+        gifter_options = [
+            UserData.objects.filter(user=gifter_options.option1)[0],
+            UserData.objects.filter(user=gifter_options.option2)[0],
+            UserData.objects.filter(user=gifter_options.option3)[0]
+        ]
+        # Colocaremos los aliases en vez de los usernames.
+        gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
+        self.fields['gifter'] = forms.ChoiceField(choices=gifter_options)
+
+        # Colocamos todos los jugadores como opcion de gifted.
+        gifted_options = list(UserTeam.objects.all())
+        # Obtenemos los UserData de cada jugador.
+        gifted_options = [UserData.objects.filter(user=user_team.user)[0] for user_team in gifted_options]
+        # Colocaremos los aliases en vez de los usernames
+        gifted_options = [(user_data.alias, user_data.alias) for user_data in gifted_options]
+        self.fields['gifted'] = forms.ChoiceField(choices=gifted_options)
+
+    class Meta:
+        """ Indicamos el modelo a usar y los campos del form para el registro.
+        Dichos campos son: username, alias, gift, password1 y password2."""
+        model = Guess
+        fields = (
+            'gifter',
+            'gifted',
+        )
+
+    def clean_gifter(self):
+        """Dado el alias que el owner indico como gifter, obtenemos el User asociado. """
+        gifter = self.cleaned_data['gifter']
+        gifter = UserData.objects.filter(alias=gifter)[0]
+        return gifter.user
+
+    def clean_gifted(self):
+        """Dado el alias que el owner indico como gifted, obtenemos el User asociado. """
+        gifted = self.cleaned_data['gifted']
+        gifted = UserData.objects.filter(alias=gifted)[0]
+        return gifted.user
+
+    def save(self, commit: bool = True):
+        # El último juego creado es el activo
+        game = Game.objects.latest('startDate')
+        # El owner sera el jugaor registrado
+        owner = self.user
+        # Obtenemos el gifter y el gifted
+        gifter = self.cleaned_data['gifter']
+        gifted = self.cleaned_data['gifted']
+
+        # Obtenemos la respuesta
+        if GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted: 
+            # Si adivino correctamente, la respuesta sera True
+            answer=True
+        else:
+            # En caso contrario habra una posibilidad de 5/N (siendo N el numero
+            # de jugadores) de que de un falso positivo.
+            N = len(UserTeam.objects.all())
+            answer = choices([True, False], weights=[5/N, 1 - 5/N], k=1)[0]
+
+        # Creamos una instancia de Guess
+        Guess.objects.create(
+            game=game,
+            owner=owner,
+            gifter=gifter,
+            gifted=gifted,
+            date=make_aware(datetime.now()),
+            answer=answer
+        ).save()
+
+        # Movemos al owner del grupo Guessing a Guessed
+        Group.objects.get(name='Guessing').user_set.remove(owner)
+        Group.objects.get(name='Guessed').user_set.add(owner)
+
+        # Eliminamos las opciones del owner
+        Options.objects.filter(user=owner).delete()
