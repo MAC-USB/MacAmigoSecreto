@@ -43,6 +43,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGIN_URL = '/signin'
+
+LOGIN_REDIRECT_URL = '/'
+
+LOGOUT_REDIRECT_URL = '/signin'
+
+USE_TZ = True   # TimeZone
+
+APSCHEDULER_DATETIME_FORMAT = 'd/m/Y'   #00/00/0000
+
+APSCHEDULER_RUN_NOW_TIMEOUT = 25  # Seconds
 
 # Application definition
 
@@ -53,6 +64,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_apscheduler',
+    'guess',
 ]
 
 MIDDLEWARE = [
@@ -70,7 +83,7 @@ ROOT_URLCONF = 'amigoSecreto.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates'), ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

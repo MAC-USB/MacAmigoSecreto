@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Bienvenido{% endblock %}
+
+{% block content %}
+
+    {% if user.is_authenticated %}
+        <h1>Hola {{ user.username }}</h1>
+        {% if user.is_superuser %}
+            <a href="{% url 'create_game' %}">Crear juego</a>
+            <br>
+        {% endif %}
+        <a href="{% url 'sign_out' %}">Cerrar sesión</a>
+    {% else %}
+    Fuera de aqui. Negro.
+        <a href="{% url 'sign_up' %}">Registrate</a>
+        <a href="{% url 'sign_in' %}">Iniciar sesión</a>
+    {% endif %}
+    
+{% endblock content %}

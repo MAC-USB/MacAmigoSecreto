@@ -15,7 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from guess.urls import urlpatterns as guess_url_patterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-]
+] + guess_url_patterns
+
