@@ -225,13 +225,13 @@ class GameForm(forms.ModelForm):
             for i, user in enumerate(group):
                 next_to_guess.user_set.remove(user.user)
                 guessing.user_set.add(user.user)
-                Options(
+                Options.objects.create(
                     round=round,
                     user=user.user,
                     option1 = options[i][0].user,
                     option2 = options[i][1].user,
                     option3 = options[i][2].user,
-                ).save()
+                )
         return set_options
     
     def create_selections(self, round, dates, k):
@@ -243,34 +243,36 @@ class GameForm(forms.ModelForm):
             * k: Variable que se usa para hacer pruebas.
         """
         ###### EL ARGUMENTO k SOLO SE USA PARA LAS PRUEBAS
-        # Obtenemos la lista de usuarios que estan jugando, asi como los usuarios
-        # que pertenecen al equipo lobo y al equipo aldeano.
-        users, wolfs, villagers = [], [], []
-        for user in list(UserTeam.objects.all()):
-            users.append(user)
-            if user.team.name == "Wolfs": wolfs.append(user)
-            else: villagers.append(user)
+        userteam_instances, wolfs, villagers = [], [], []
+        # Obtenemos el juego y el ID de los teams
+        game = round.game
+        team_ids = game.teams_set.values_list('id', flat=True)
+        # Obtener los del juego actual
+        for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+            userteam_instances.append(user_team_pair)
+            if user_team_pair.team.name == "Wolfs": wolfs.append(user_team_pair)
+            else: villagers.append(user_team_pair)
 
-        # Reorganizamos aleatoriamente los usuarios.
-        N = len(users)
-        shuffle(users)
+        # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+        N = len(userteam_instances)
+        shuffle(userteam_instances)
 
         # Calculamos el numero de usuarios que intentaran adivinar por cada seleccion.
         S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
         groups = []
         for i in range(6):
-            groups.append(users[sum(S[:i]) : sum(S[:i+1])])
+            groups.append(userteam_instances[sum(S[:i]) : sum(S[:i+1])])
         
         # Creamos las opciones de cada jugador de cada seleccion.
         round_options = []
         for i in range(6):
             i_options = []
-            for user in groups[i]:
+            for user_team_pair in groups[i]:
                 # Reorganizamos aleatoriamente los lobos y los aldeanos.
                 shuffle(wolfs)
                 shuffle(villagers)
                 # Si el usuario es lobo, tomamos los primeros 3 aldeanos como sus opciones
-                if user.team.name == "Wolfs": i_options.append(villagers[:3])
+                if user_team_pair.team.name == "Wolfs": i_options.append(villagers[:3])
                 # En caso contrario, tomamos los primeros 3 lobos como sus opciones.
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
@@ -303,12 +305,12 @@ class GameForm(forms.ModelForm):
         # Fecha final.
         endDate = startDate + timedelta(days=self.cleaned_data['days'])
 
-        game = Game(
+        game = Game.objects.create(
             startDate=make_aware(startDate),
             days=self.cleaned_data['days'],
             endDate=make_aware(endDate)
         )
-        game.save()
+        # game.save()
 
         # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
         # Aqui almacenaremos las rondas creadas
@@ -347,8 +349,9 @@ class GameForm(forms.ModelForm):
         next_to_guess.user_set.clear()
 
         # COLOCAMOS TODOS LOS USUARIOS EN NextToGuess
-        for user in list(User.objects.all()):
-            next_to_guess.user_set.add(user)
+        team_ids = game.teams_set.values_list('id', flat=True)
+        for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+            next_to_guess.user_set.add(user_team_pair.user)
 
         # Almacenamos los datos de cada ronda.
         for i, dates in enumerate(rounds):
@@ -361,7 +364,7 @@ class GameForm(forms.ModelForm):
                 fifthSelection = dates[4],
                 sixthSelection = dates[5],
             )
-            round.save()
+            # round.save()
             self.create_selections(round, dates, i)
 
 class GuessForm(forms.ModelForm):
