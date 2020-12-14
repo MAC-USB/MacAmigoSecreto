@@ -87,7 +87,6 @@ class HistoryView(LoginRequiredMixin, TemplateView):
     template_name = 'templates/history.html'
 
     def get_context_data(self, **kwargs):
-
         class Group:
             """ En cada Group guardaremos los owners y los gifters de cada guess
             si pertenecen al mismo selection. """
@@ -116,16 +115,28 @@ class HistoryView(LoginRequiredMixin, TemplateView):
                 round.sixthSelection
             ]
 
+        # Limitamos las fechas
+        for i in range(len(dates)):
+            if dates[i] >= make_aware(datetime.now() + timedelta(days=1)): 
+                dates = dates[:i]
+                break
+
         # En esta variable guardaremos cada grupo de guesses
         group_selections = [Group()]
         # date indica el indice de dates en el que nos encontramos actualmente.
-        date = 1
+        date = 0
+        end = False
         for guess in context['Guess']:
             # Si el guess actual se realizo luego de la fecha actual, significa 
             # que debemos pasar al siguiente grupo.
             if guess.date >= dates[date]:
                 # Elegimos la siguiente fecha hasta que sea mayor al guess actual.
-                while guess.date >= dates[date]: date += 1
+                while guess.date >= dates[date]: 
+                    date += 1
+                    if date >= len(dates):
+                        end = True
+                        break
+                if end: break
                 # Creamos un nuevo grupo solo si el actual no esta vacio.
                 if len(group_selections[-1].gifters) > 0:
                     group_selections.append(Group())
