@@ -90,7 +90,9 @@ class HistoryView(LoginRequiredMixin, TemplateView):
         class Group:
             """ En cada Group guardaremos los owners y los gifters de cada guess
             si pertenecen al mismo selection. """
-            def __init__(self):
+            def __init__(self, startDate, endDate):
+                self.startDate = startDate
+                self.endDate = endDate
                 self.owners = []
                 self.gifters = []
 
@@ -115,35 +117,32 @@ class HistoryView(LoginRequiredMixin, TemplateView):
                 round.sixthSelection
             ]
 
-        # Limitamos las fechas
+        # Limitamos las fechas hasta la mayor que sea menor a la fecha actual
         for i in range(len(dates)):
-            if dates[i] >= make_aware(datetime.now() + timedelta(days=1)): 
+            if dates[i] >= make_aware(datetime.now() + timedelta(hours=32)): 
                 dates = dates[:i]
                 break
 
         # En esta variable guardaremos cada grupo de guesses
-        group_selections = [Group()]
-        # date indica el indice de dates en el que nos encontramos actualmente.
-        date = 0
-        end = False
+        group_selections = []
+        for i in range(len(dates)-1):
+            group_selections.append(Group(dates[i], dates[i+1]))
+
+        # Por cada guess.
         for guess in context['Guess']:
-            # Si el guess actual se realizo luego de la fecha actual, significa 
-            # que debemos pasar al siguiente grupo.
-            if guess.date >= dates[date]:
-                # Elegimos la siguiente fecha hasta que sea mayor al guess actual.
-                while guess.date >= dates[date]: 
-                    date += 1
-                    if date >= len(dates):
-                        end = True
-                        break
-                if end: break
-                # Creamos un nuevo grupo solo si el actual no esta vacio.
-                if len(group_selections[-1].gifters) > 0:
-                    group_selections.append(Group())
-            
-            # Agregamos el gifter y el owner al grupo actual.
-            group_selections[-1].gifters.append(guess.gifter)
-            group_selections[-1].owners.append(guess.owner)
+            for group in group_selections:
+                # Verificamos si la fecha del guess esta en el rango de este grupo.
+                if group.startDate <= guess.date < group.endDate:
+                    # Si es asi, a;adimos el guess a este grupo
+                    group.owners.append(guess.owner)
+                    group.gifters.append(guess.gifter)
+                    break
+
+        # Eliminamos los grupos vacios.
+        i = 0
+        while i < len(group_selections):
+            if len(group_selections[i].owners) == 0: group_selections.pop(i)
+            else: i += 1
 
         # Reordenamos aleatoriamente cada grupo.
         for group in group_selections:
@@ -152,3 +151,8 @@ class HistoryView(LoginRequiredMixin, TemplateView):
 
         context['Groups'] = group_selections
         return context
+
+class UsersView(LoginRequiredMixin, ListView):
+    """ Muestra todos los usuarios registrados junto a su informacion, """
+    template_name = 'templates/users.html'
+    model = UserData

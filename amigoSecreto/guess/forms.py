@@ -278,8 +278,8 @@ class GameForm(forms.ModelForm):
             round_options.append(i_options.copy())
 
         # Descomentar las siguientes 2 lineas para hacer pruebas
-        dates = [datetime.now() + timedelta(hours=k*6) + \
-            timedelta(hours=i) for i in range(len(groups))]
+        #dates = [datetime.now() + timedelta(hours=k*6) + \
+        #    timedelta(hours=i) for i in range(len(groups))]
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             # Creamos un job por cada seleccion.

@@ -11,4 +11,5 @@ urlpatterns = [
     path('create_game/', CreateGameView.as_view(), name='create_game'),
     path('guess/', GuessView.as_view(), name='guess'),
     path('history/', HistoryView.as_view(), name='history'),
+    path('users/', UsersView.as_view(), name='users'),
 ]
