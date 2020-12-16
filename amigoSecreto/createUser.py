@@ -1,5 +1,6 @@
 from guess.forms import *
 
+# Creando usuarios automaticamente
 for i in range(24):
     user = User.objects.create_user(
         username="player" + str(i),

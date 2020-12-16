@@ -142,7 +142,7 @@ class GameForm(forms.ModelForm):
         # Almacenamos la instancia de todos los jugadores
         # TODO hay que definir aquí si van a ser todos los usuarios o si el superusuario los 
         # va agregando
-        users = list(User.objects.all())
+        users = list(UserData.objects.all())
 
         # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
         N = len(users)
@@ -159,22 +159,22 @@ class GameForm(forms.ModelForm):
         # Creamos el equipo lobo para el juego actual
         wolfs_team = Teams.objects.get_or_create(game=game, name='Wolfs')[0]#, score=0)
         for wolf in wolfs:
-            UserTeam.objects.create(team=wolfs_team, user=wolf)
+            UserTeam.objects.create(team=wolfs_team, user=wolf.user)
 
         # Creamos el equipo aldeano para el juego actual
         villagers_team = Teams.objects.get_or_create(game=game, name='Villagers')[0]#, score=0)
         for villager in villagers:
-            UserTeam.objects.create(team=villagers_team, user=villager)
+            UserTeam.objects.create(team=villagers_team, user=villager.user)
 
         ##### ------------ REPRESENTACION DEL POTE DE EAS ------------ #####
         shuffle(wolfs)
         shuffle(villagers)
         for i in range(len(wolfs)):
-            GivesTo.objects.create(game=game, gifter=wolfs[i], gifted=villagers[i])
+            GivesTo.objects.create(game=game, gifter=wolfs[i].user, gifted=villagers[i].user)
         shuffle(wolfs)
         shuffle(villagers)
         for i in range(len(wolfs)):
-            GivesTo.objects.create(game=game, gifted=wolfs[i], gifter=villagers[i])
+            GivesTo.objects.create(game=game, gifted=wolfs[i].user, gifter=villagers[i].user)
 
     def get_set_options(self, group, round, options, first_selection):
         """ 
