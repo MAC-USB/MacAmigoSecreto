@@ -38,6 +38,12 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
     """ Clase heredada de TemplateView que representa la vista para la pagina principal.
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Verificamos si hay algun juego activo
+        context['game_active'] = bool(len(Game.objects.all()))
+        return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """ Clase heredada de CreateView que representa la vista para la creacion de una
@@ -60,7 +66,7 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.save()
         return redirect('/')
 
-class GuessView(LoginRequiredMixin, CreateView):
+class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Guess
     template_name = 'templates/guess_form.html'
     form_class = GuessForm
@@ -81,7 +87,8 @@ class GuessView(LoginRequiredMixin, CreateView):
 
     def test_func(self):
         # TODO verificar que el usuario esta en Guessing.
-        return True
+        print(self.request.user.groups.filter(name = "Guessing").exists())
+        return self.request.user.groups.filter(name = "Guessing").exists()
 
 class HistoryView(LoginRequiredMixin, TemplateView):
     template_name = 'templates/history.html'
@@ -184,6 +191,5 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if user_team.team.name == team.name:
                     team.users.append(UserData.objects.filter(user=user_team.user)[0].alias)
 
-        print(teams)
         context['Teams'] = teams
         return context
