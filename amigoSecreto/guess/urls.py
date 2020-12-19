@@ -12,6 +12,5 @@ urlpatterns = [
     path('guess/', GuessView.as_view(), name='guess'),
     path('history/', HistoryView.as_view(), name='history'),
     path('users/', UsersView.as_view(), name='users'),
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('rules/', RulesView.as_view(), name='rules'),
 ]
