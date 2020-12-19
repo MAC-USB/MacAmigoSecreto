@@ -38,11 +38,41 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
     """ Clase heredada de TemplateView que representa la vista para la pagina principal.
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         # Verificamos si hay algun juego activo
         context['game_active'] = bool(len(Game.objects.all()))
+
+        class TeamsData:
+            """ Clase donde almacenamos los datos de los teams. """
+            def __init__(self, name, score):
+                self.name = name
+                self.score = score
+                self.users = []
+
+        # Obtenemos el juego actual
+        game = Game.objects.latest('startDate')
+
+        # Obtenemos los equipos del juego actual
+        teams = list(Teams.objects.filter(game=game))
+        teams = [TeamsData(team.name, team.score) for team in teams]
+
+        # Agrupamos los usuarios
+        for user_team in UserTeam.objects.all():
+            for team in teams:
+                if user_team.team.name == team.name:
+                    team.users.append(UserData.objects.filter(user=user_team.user)[0].alias)
+
+        context['Teams'] = teams
+
+        # Fecha actual.
+        context['date'] = make_aware(datetime.now()).strftime('%b %d, %Y %H:%M:%S')
+        # Fecha final del juego.
+        context['end_date'] = game.endDate.strftime('%b %d, %Y %H:%M:%S')
+        # Verificamos si ya pasamos la fecha final.
+        context['end_countdown'] = make_aware(datetime.now()) >= game.endDate
+
         return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -164,32 +194,3 @@ class UsersView(LoginRequiredMixin, ListView):
     template_name = 'templates/users.html'
     model = UserData
 
-class DashboardView(LoginRequiredMixin, TemplateView):
-    """ Muestra el puntaje de los equipos, junto a sus integrantes. """
-    template_name = 'templates/dashboard.html'
-
-    def get_context_data(self, **kwargs):
-        class TeamsData:
-            """ Clase donde almacenamos los datos de los teams. """
-            def __init__(self, name, score):
-                self.name = name
-                self.score = score
-                self.users = []
-
-        context = super().get_context_data(**kwargs)
-
-        # Obtenemos el juego actual
-        game = Game.objects.latest('startDate')
-
-        # Obtenemos los equipos del juego actual
-        teams = list(Teams.objects.filter(game=game))
-        teams = [TeamsData(team.name, team.score) for team in teams]
-
-        # Agrupamos los usuarios
-        for user_team in UserTeam.objects.all():
-            for team in teams:
-                if user_team.team.name == team.name:
-                    team.users.append(UserData.objects.filter(user=user_team.user)[0].alias)
-
-        context['Teams'] = teams
-        return context
