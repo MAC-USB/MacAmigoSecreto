@@ -72,3 +72,8 @@ class Options(models.Model):
 
     def __str__(self):
         return f"{self.user} have options {self.option1}, {self.option2} and {self.option3}"
+
+class Junior(models.Model):
+    name = models.CharField(max_length=50)
+    sound = models.FileField()
+    photo = models.FileField()
