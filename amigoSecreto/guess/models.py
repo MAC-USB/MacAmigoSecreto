@@ -10,6 +10,7 @@ class Game(models.Model):
     days = models.PositiveSmallIntegerField(
         default=6, validators=[MinValueValidator(6), MaxValueValidator(12)])
     endDate = models.DateTimeField(default=date.today)
+    gameDay = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Game of {self.startDate}"

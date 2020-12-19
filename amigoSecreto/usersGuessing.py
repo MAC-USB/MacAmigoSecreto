@@ -1,3 +1,4 @@
 from guess.forms import *
 
-print(Group.objects.get(name='Guessing').user_set.all())
+for user in Group.objects.get(name='Guessing').user_set.all():
+    print(user, "<=", GivesTo.objects.filter(gifted=user)[0].gifter)

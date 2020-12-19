@@ -372,24 +372,43 @@ class GuessForm(forms.ModelForm):
         self.user = kwargs.pop('user')
         super(GuessForm, self).__init__(*args, **kwargs)
 
-        # Obtenemos las opciones del jugador para elegir a quien adivinar.
-        gifter_options = Options.objects.filter(user=self.user)[0]
-        # Obtenemos los UserData de cada opcion
-        gifter_options = [
-            UserData.objects.filter(user=gifter_options.option1)[0],
-            UserData.objects.filter(user=gifter_options.option2)[0],
-            UserData.objects.filter(user=gifter_options.option3)[0]
-        ]
-        # Colocaremos los aliases en vez de los usernames.
-        gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
-        self.fields['gifter'] = forms.ChoiceField(choices=gifter_options)
+        # El último juego creado es el activo
+        game = Game.objects.latest('startDate')
+        team = UserTeam.objects.filter(user=self.user)[0].team 
 
-        # Colocamos todos los jugadores como opcion de gifted.
-        gifted_options = list(UserTeam.objects.all())
-        # Obtenemos los UserData de cada jugador.
-        gifted_options = [UserData.objects.filter(user=user_team.user)[0] for user_team in gifted_options]
-        # Colocaremos los aliases en vez de los usernames
-        gifted_options = [(user_data.alias, user_data.alias) for user_data in gifted_options]
+        if not game.gameDay:
+            # Obtenemos las opciones del jugador para elegir a quien adivinar.
+            gifter_options = Options.objects.filter(user=self.user)[0]
+            # Obtenemos los UserData de cada opcion
+            gifter_options = [
+                UserData.objects.filter(user=gifter_options.option1)[0],
+                UserData.objects.filter(user=gifter_options.option2)[0],
+                UserData.objects.filter(user=gifter_options.option3)[0]
+            ]
+            # Colocaremos los aliases en vez de los usernames.
+            gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
+
+
+            # Colocamos todos los jugadores como opcion de gifted.
+            gifted_options = list(UserTeam.objects.all())
+            # Obtenemos los UserData de cada jugador.
+            gifted_options = [UserData.objects.filter(user=user_team.user)[0] for user_team in gifted_options]
+            # Colocaremos los aliases en vez de los usernames
+            gifted_options = [(user_data.alias, user_data.alias) for user_data in gifted_options]
+
+
+        else:
+            gifter_options = []
+            for user_team in UserTeam.objects.all():
+                if user_team.team != team:
+                    gifter_options.append(UserData.objects.filter(user=user_team.user)[0])
+            # Colocaremos los aliases en vez de los usernames.
+            gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
+
+            alias = UserData.objects.filter(user=self.user)[0]
+            gifted_options = [(alias, alias)]
+
+        self.fields['gifter'] = forms.ChoiceField(choices=gifter_options)
         self.fields['gifted'] = forms.ChoiceField(choices=gifted_options)
 
     class Meta:
@@ -416,35 +435,127 @@ class GuessForm(forms.ModelForm):
     def save(self, commit: bool = True):
         # El último juego creado es el activo
         game = Game.objects.latest('startDate')
+
         # El owner sera el jugaor registrado
         owner = self.user
         # Obtenemos el gifter y el gifted
         gifter = self.cleaned_data['gifter']
         gifted = self.cleaned_data['gifted']
+        if not game.gameDay:
 
-        # Obtenemos la respuesta
-        if GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted: 
-            # Si adivino correctamente, la respuesta sera True
-            answer=True
+            # Obtenemos la respuesta
+            if GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted: 
+                # Si adivino correctamente, la respuesta sera True
+                answer=True
+            else:
+                # En caso contrario habra una posibilidad de 5/N (siendo N el numero
+                # de jugadores) de que de un falso positivo.
+                N = len(UserTeam.objects.all())
+                answer = choices([True, False], weights=[5/N, 1 - 5/N], k=1)[0]
+
+            # Creamos una instancia de Guess
+            Guess.objects.create(
+                game=game,
+                owner=owner,
+                gifter=gifter,
+                gifted=gifted,
+                date=make_aware(datetime.now()),
+                answer=answer
+            ).save()
+
+            # Movemos al owner del grupo Guessing a Guessed
+            Group.objects.get(name='Guessing').user_set.remove(owner)
+            Group.objects.get(name='Guessed').user_set.add(owner)
+
+            # Eliminamos las opciones del owner
+            Options.objects.filter(user=owner).delete()
+
         else:
-            # En caso contrario habra una posibilidad de 5/N (siendo N el numero
-            # de jugadores) de que de un falso positivo.
-            N = len(UserTeam.objects.all())
-            answer = choices([True, False], weights=[5/N, 1 - 5/N], k=1)[0]
+            # Verificamo si adivino correctamente
+            answer = GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted
+            owner_data = UserData.objects.filter(user=self.user)[0]
+            owner_data.guessed = answer
+            owner_data.save()
 
-        # Creamos una instancia de Guess
-        Guess.objects.create(
-            game=game,
-            owner=owner,
-            gifter=gifter,
-            gifted=gifted,
-            date=make_aware(datetime.now()),
-            answer=answer
-        ).save()
+            # Aumentamos el score de su equipo
+            team = UserTeam.objects.filter(user=self.user)[0].team 
+            team.score += 1
+            team.save()
 
-        # Movemos al owner del grupo Guessing a Guessed
-        Group.objects.get(name='Guessing').user_set.remove(owner)
-        Group.objects.get(name='Guessed').user_set.add(owner)
+            # Movemos al owner del grupo Guessing a Guessed
+            Group.objects.get(name='Guessing').user_set.remove(self.user)
+            Group.objects.get(name='Guessed').user_set.add(self.user)
 
-        # Eliminamos las opciones del owner
-        Options.objects.filter(user=owner).delete()
+            # Obtenemos los usuario del equipo contrario
+            another_team = []
+            for user_team in UserTeam.objects.all():
+                if user_team.team != team:
+                    another_team.append(UserData.objects.filter(user=user_team.user)[0])
+
+            # Ordenamos aleatoriamente dicho equipo
+            shuffle(another_team)
+
+            # La siguiente persona en adivinar sera el primer que aparezca del siguiente 
+            # equipo que aun no haya adivinado quien le regala
+            for user_data in another_team:
+                if not user_data.guessed:
+                    Group.objects.get(name='NextToGuess').user_set.remove(user_data.user)
+                    Group.objects.get(name='Guessing').user_set.add(user_data.user)
+                    return
+
+            # Si llegamos hasta aca, significa que el otro equipo ya gano.
+            # Obtenemos los usuario de este equipo
+            team = []
+            for user_team in UserTeam.objects.all():
+                if user_team.team == team:
+                    team.append(UserData.objects.filter(user=user_team.user)[0])
+
+            # Ordenamos aleatoriamente dicho equipo
+            shuffle(team)
+
+            # La siguiente persona en adivinar sera el primer que aparezca del siguiente 
+            # equipo que aun no haya adivinado quien le regala
+            for user_data in team:
+                if not user_data.guessed:
+                    Group.objects.get(name='NextToGuess').user_set.remove(user_data.user)
+                    Group.objects.get(name='Guessing').user_set.add(user_data.user)
+                    return
+            
+            
+class StartGameForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super(StartGameForm, self).__init__(*args, **kwargs)
+
+        # El último juego creado es el activo
+        self.game = Game.objects.latest('startDate')
+
+        self.text = "Do you want to start the " + str(self.game)
+        self.fields[self.text] = forms.TypedChoiceField(
+            choices=((False, 'No'), (True, 'Yes'))
+        )
+
+    def save(self, commit: bool = True):
+        if self.cleaned_data[self.text]:
+            # Obtenemos los 3 grupos
+            guessing = Group.objects.get(name='Guessing')
+            guessed = Group.objects.get(name='Guessed')
+            next_to_guess = Group.objects.get(name='NextToGuess')
+
+            team_ids = self.game.teams_set.values_list('id', flat=True)
+
+            # Sacamos a todos los usuarios de Guessed y Guessing
+            # y agregamos a todos los usuarios a NextToGuess
+            guessing.user_set.clear()
+            guessed.user_set.clear()
+            # Solo para los usuarios que pertenecen al juego actual
+            for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
+                next_to_guess.user_set.add(user_team_pair.user)
+
+            self.game.gameDay = True
+            self.game.save()
+
+            # Elegimos aleatoriamente a un usuario para adivinar
+            users = [user for user in UserData.objects.all()]
+            shuffle(users)
+            Group.objects.get(name='NextToGuess').user_set.remove(users[0].user)
+            Group.objects.get(name='Guessing').user_set.add(users[0].user)

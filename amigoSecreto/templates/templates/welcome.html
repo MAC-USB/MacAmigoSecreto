@@ -19,8 +19,9 @@
 
         Fecha actual: {{ date }} <br>
         Fecha final: {{ end_date }} <br>
-        Pasamos la fecha final: {{ end_countdown }} <br>
+        Pasamos la fecha final: {{ end_countdown }} <br> <br>
 
+        Guessing: {{ guessing }} <br> <br>
         <ul>
             {% for team in Teams %}
                 <li> 
@@ -28,7 +29,7 @@
                 Score: {{ team.score }} <br>
                 Users: <br>
                 {% for user in team.users %}
-                    {{ user }} <br>
+                    {{ user.alias }}. ({{ user.guessed }}) <br>
                 {% endfor %}
                 </li> <br>
             {% endfor %}

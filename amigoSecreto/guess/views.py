@@ -4,7 +4,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 # from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.generic import CreateView, TemplateView, ListView
+from django.views.generic import CreateView, TemplateView, ListView, FormView
 from django.utils.decorators import method_decorator
 from .models import *
 from .forms import *
@@ -62,7 +62,7 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
         for user_team in UserTeam.objects.all():
             for team in teams:
                 if user_team.team.name == team.name:
-                    team.users.append(UserData.objects.filter(user=user_team.user)[0].alias)
+                    team.users.append(UserData.objects.filter(user=user_team.user)[0])
 
         context['Teams'] = teams
 
@@ -73,6 +73,8 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
         # Verificamos si ya pasamos la fecha final.
         context['end_countdown'] = make_aware(datetime.now()) >= game.endDate
 
+        # La persona que esta adivinando
+        context['guessing'] = list(Group.objects.get(name='Guessing').user_set.all())[0]
         return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -117,7 +119,6 @@ class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         # TODO verificar que el usuario esta en Guessing.
-        print(self.request.user.groups.filter(name = "Guessing").exists())
         return self.request.user.groups.filter(name = "Guessing").exists()
 
 class HistoryView(LoginRequiredMixin, TemplateView):
@@ -156,7 +157,7 @@ class HistoryView(LoginRequiredMixin, TemplateView):
 
         # Limitamos las fechas hasta la mayor que sea menor a la fecha actual
         for i in range(len(dates)):
-            if dates[i] >= make_aware(datetime.now() + timedelta(hours=24)): 
+            if dates[i] >= make_aware(datetime.now()): 
                 dates = dates[:i]
                 break
 
@@ -197,3 +198,28 @@ class UsersView(LoginRequiredMixin, ListView):
 class RulesView(LoginRequiredMixin, TemplateView):
     '''Clase heredada de TemplateView que representa la vista de las reglas del juego'''
     template_name = 'templates/rules.html'
+
+class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+    form_class = StartGameForm
+    template_name = 'templates/init_game_form.html'
+
+    def test_func(self):
+        """ Función para usar con UserPassesTestMixin.
+            Permite solo a superusuarios
+        """
+        # Condiciones para ver esta vista:
+        # Ser super usuarios
+        cond1 = self.request.user.is_superuser
+        # Que ya se haya alcanzado la fecha limite del ultimo juego creado
+        cond2 = make_aware(datetime.now() + timedelta(days=30)) >= Game.objects.latest('startDate').endDate
+        # Que el ultimo juego creado no haya sido iniciado
+        cond3 = not Game.objects.latest('startDate').gameDay
+        return cond1 and cond2 and cond3
+
+    def form_valid(self, form):
+        '''
+        En este parte, si el formulario es valido guardamos lo que se 
+        obtiene de él.
+        '''
+        form.save()
+        return redirect('/')
