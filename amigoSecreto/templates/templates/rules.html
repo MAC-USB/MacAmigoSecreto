@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html>
+
+    {% if user.is_authenticated %}
+    <div class="jumbotron">
+        <h1 class="display-4">Reglas</h1>
+    </div>
+        <table class="table table-bordered">
+            <tbody>
+              <tr>
+                <th scope="row">1</th>
+                <td>Los participantes se registran en la aplicación con todos sus datos (hasta el regalo que desean). Este registro estará abierto hasta que se dé inicio al juego, luego de eso no se puede agregar ni quitar a nadie.</td>
+              </tr>
+              <tr>
+                <th scope="row">2</th>
+                <td>Al iniciar el juego, se le muestra al participante a qué equipo pertenece y la persona a la cual le va a regalar. Esta vista solo puede verse en ese momento, al cerrarla no se mostrará más la información. Los participantes no sabrán quiénes pertenecen a su equipo.</td>
+              </tr>
+              <tr>
+                <th scope="row">3</th>
+                <td>
+                    Antes del evento
+                    <br>
+                    Cada cierto tiempo T se seleccionan S participantes de cada equipo:
+                    <table class="table table-borderless">
+                        <tbody>
+                          <tr>
+                            <th scope="row">a</th>
+                            <td>A cada participante se le dan X cantidad de opciones de personas del otro equipo para intentar adivinar a quién le regalan.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">b</th>
+                            <td>El participante selecciona un nombre de entre una lista con los nombres de todos los participantes.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">c</th>
+                            <td>La aplicación contesta si el participante acertó la adivinanza o no, con la probabilidad de dar un falso positivo (ejemplo: Amin selecciona que Carlos le regala a Juan, la aplicación responde que sí pero la verdad es que Carlos le regala a Koz). De esta manera los participantes solo pueden estar seguros de la respuesta cuando la aplicación contesta que no acertó.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">d</th>
+                            <td>La adivinanza durará un tiempo Y (menor o igual a T), consumido este tiempo te jodes, y se Seleccionará un nuevo conjunto de S participantes.</td>
+                          </tr>
+                        </tbody>
+                    </table>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">3</th>
+                <td>
+                    Dia del evento
+                    <table class="table table-borderless">
+                        <tbody>
+                          <tr>
+                            <th scope="row">a</th>
+                            <td>Se revelan los equipos.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">b</th>
+                            <td>Se selecciona de manera aleatoria (sin reemplazo, hasta pasar por todos los integrantes) un integrante del equipo que vaya a adivinar.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">c</th>
+                            <td>El participante selecciona el nombre de la persona que cree que le regala a él, de una lista de nombres de los integrantes del otro equipo.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">d</th>
+                            <td>La aplicación muestra si acertó o no, y suma el puntaje.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">e</th>
+                            <td>Continúa con el siguiente participante.</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">f</th>
+                            <td>El evento termina cuando todos hayan adivinado, y se anuncia el equipo ganador, aquel con el menor puntaje.</td>
+                          </tr>
+                        </tbody>
+                    </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+        <a href="{% url 'sign_out' %}">Cerrar sesión</a>
+    {% else %}
+    Fuera de aqui. Negro.
+        <a href="{% url 'sign_up' %}">Registrate</a>
+        <a href="{% url 'sign_in' %}">Iniciar sesión</a>
+    {% endif %}
+    
+{% endblock content %}

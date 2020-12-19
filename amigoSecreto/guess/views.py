@@ -193,3 +193,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         context['Teams'] = teams
         return context
+        return True
+
+class RulesView(LoginRequiredMixin, TemplateView):
+    '''Clase heredada de TemplateView que representa la vista de las reglas del juego'''
+    template_name = 'templates/rules.html'
