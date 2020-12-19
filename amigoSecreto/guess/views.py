@@ -4,7 +4,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 # from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.generic import CreateView, TemplateView
+from django.views.generic import CreateView, TemplateView, ListView
 from django.utils.decorators import method_decorator
 from .models import *
 from .forms import *
@@ -38,6 +38,12 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
     """ Clase heredada de TemplateView que representa la vista para la pagina principal.
     En caso de no haber usuario registrado, redirige a la vista del login."""
     template_name = 'templates/welcome.html'
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Verificamos si hay algun juego activo
+        context['game_active'] = bool(len(Game.objects.all()))
+        return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """ Clase heredada de CreateView que representa la vista para la creacion de una
@@ -60,7 +66,7 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.save()
         return redirect('/')
 
-class GuessView(LoginRequiredMixin, CreateView):
+class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Guess
     template_name = 'templates/guess_form.html'
     form_class = GuessForm
@@ -81,4 +87,114 @@ class GuessView(LoginRequiredMixin, CreateView):
 
     def test_func(self):
         # TODO verificar que el usuario esta en Guessing.
+        print(self.request.user.groups.filter(name = "Guessing").exists())
+        return self.request.user.groups.filter(name = "Guessing").exists()
+
+class HistoryView(LoginRequiredMixin, TemplateView):
+    template_name = 'templates/history.html'
+
+    def get_context_data(self, **kwargs):
+        class Group:
+            """ En cada Group guardaremos los owners y los gifters de cada guess
+            si pertenecen al mismo selection. """
+            def __init__(self, startDate, endDate):
+                self.startDate = startDate
+                self.endDate = endDate
+                self.owners = []
+                self.gifters = []
+
+        context = super().get_context_data(**kwargs)
+
+        # Obtenemos el juego actual
+        game = Game.objects.latest('startDate')
+
+        # Obtenemos los guess del juego actual
+        context['Guess'] = list(Guess.objects.filter(game=game))
+
+        # Obtenemos las fechas de cada seleccion de cada ronda del juego actual
+        dates = []
+        rounds = list(Round.objects.filter(game=game))
+        for round in rounds:
+            dates += [
+                round.firstSelection, 
+                round.secondSelection, 
+                round.thirdSelection, 
+                round.fourthSelection, 
+                round.fifthSelection, 
+                round.sixthSelection
+            ]
+
+        # Limitamos las fechas hasta la mayor que sea menor a la fecha actual
+        for i in range(len(dates)):
+            if dates[i] >= make_aware(datetime.now() + timedelta(hours=24)): 
+                dates = dates[:i]
+                break
+
+        # En esta variable guardaremos cada grupo de guesses
+        group_selections = []
+        for i in range(len(dates)-1):
+            group_selections.append(Group(dates[i], dates[i+1]))
+
+        # Por cada guess.
+        for guess in context['Guess']:
+            for group in group_selections:
+                # Verificamos si la fecha del guess esta en el rango de este grupo.
+                if group.startDate <= guess.date < group.endDate:
+                    # Si es asi, a;adimos el guess a este grupo
+                    group.owners.append(guess.owner)
+                    group.gifters.append(guess.gifter)
+                    break
+
+        # Eliminamos los grupos vacios.
+        i = 0
+        while i < len(group_selections):
+            if len(group_selections[i].owners) == 0: group_selections.pop(i)
+            else: i += 1
+
+        # Reordenamos aleatoriamente cada grupo.
+        for group in group_selections:
+            shuffle(group.gifters)
+            shuffle(group.owners)
+
+        context['Groups'] = group_selections
+        return context
+
+class UsersView(LoginRequiredMixin, ListView):
+    """ Muestra todos los usuarios registrados junto a su informacion, """
+    template_name = 'templates/users.html'
+    model = UserData
+
+class DashboardView(LoginRequiredMixin, TemplateView):
+    """ Muestra el puntaje de los equipos, junto a sus integrantes. """
+    template_name = 'templates/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        class TeamsData:
+            """ Clase donde almacenamos los datos de los teams. """
+            def __init__(self, name, score):
+                self.name = name
+                self.score = score
+                self.users = []
+
+        context = super().get_context_data(**kwargs)
+
+        # Obtenemos el juego actual
+        game = Game.objects.latest('startDate')
+
+        # Obtenemos los equipos del juego actual
+        teams = list(Teams.objects.filter(game=game))
+        teams = [TeamsData(team.name, team.score) for team in teams]
+
+        # Agrupamos los usuarios
+        for user_team in UserTeam.objects.all():
+            for team in teams:
+                if user_team.team.name == team.name:
+                    team.users.append(UserData.objects.filter(user=user_team.user)[0].alias)
+
+        context['Teams'] = teams
+        return context
         return True
+
+class RulesView(LoginRequiredMixin, TemplateView):
+    '''Clase heredada de TemplateView que representa la vista de las reglas del juego'''
+    template_name = 'templates/rules.html'

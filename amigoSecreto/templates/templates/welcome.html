@@ -10,7 +10,13 @@
             <a href="{% url 'create_game' %}">Crear juego</a>
             <br>
         {% endif %}
-        <a href="{% url 'sign_out' %}">Cerrar sesión</a>
+        {% if game_active %}
+            <a href="{% url 'dashboard' %}">Dashboard</a> <br>
+            <a href="{% url 'guess' %}">Guess</a> <br>
+            <a href="{% url 'history' %}">History</a> <br>
+        {% endif %}
+        <a href="{% url 'users' %}">Usuarios registrados</a> <br>
+        <a href="{% url 'sign_out' %}">Cerrar sesión</a> <br>
     {% else %}
     Fuera de aqui. Negro.
         <a href="{% url 'sign_up' %}">Registrate</a>
