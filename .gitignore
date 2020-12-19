@@ -139,3 +139,9 @@ cython_debug/
 
 #Ignore shell script
 *.sh
+
+#Ignore pyc
+*.pyc
+
+#Ignore pyc
+*.vscode
