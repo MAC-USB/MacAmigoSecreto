@@ -482,9 +482,11 @@ class GuessForm(forms.ModelForm):
             team.score += 1
             team.save()
 
-            # Movemos al owner del grupo Guessing a Guessed
+            # Movemos al owner del grupo Guessing a Guessed (si respondio correctamente)
+            # o a NextToGuess (si respondie incorrectamente)
             Group.objects.get(name='Guessing').user_set.remove(self.user)
-            Group.objects.get(name='Guessed').user_set.add(self.user)
+            if answer: Group.objects.get(name='Guessed').user_set.add(self.user)
+            else: Group.objects.get(name='NextToGuess').user_set.add(self.user)
 
             # Obtenemos los usuario del equipo contrario
             another_team = []
@@ -505,17 +507,17 @@ class GuessForm(forms.ModelForm):
 
             # Si llegamos hasta aca, significa que el otro equipo ya gano.
             # Obtenemos los usuario de este equipo
-            team = []
+            owner_team = []
             for user_team in UserTeam.objects.all():
                 if user_team.team == team:
-                    team.append(UserData.objects.filter(user=user_team.user)[0])
+                    owner_team.append(UserData.objects.filter(user=user_team.user)[0])
 
             # Ordenamos aleatoriamente dicho equipo
-            shuffle(team)
+            shuffle(owner_team)
 
             # La siguiente persona en adivinar sera el primer que aparezca del siguiente 
             # equipo que aun no haya adivinado quien le regala
-            for user_data in team:
+            for user_data in owner_team:
                 if not user_data.guessed:
                     Group.objects.get(name='NextToGuess').user_set.remove(user_data.user)
                     Group.objects.get(name='Guessing').user_set.add(user_data.user)

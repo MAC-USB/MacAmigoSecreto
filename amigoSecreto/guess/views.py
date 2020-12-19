@@ -74,7 +74,12 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
         context['end_countdown'] = make_aware(datetime.now()) >= game.endDate
 
         # La persona que esta adivinando
-        context['guessing'] = list(Group.objects.get(name='Guessing').user_set.all())[0]
+        try: context['guessing'] = list(Group.objects.get(name='Guessing').user_set.all())[0]
+        except: context['guessing'] = ""
+
+        # Inicio el juego
+        context['start_game'] = not game.gameDay
+
         return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
