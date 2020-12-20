@@ -4,6 +4,8 @@
 
 {% block content %}
 
+<img src="https://wallpapercave.com/wp/wp4919518.jpg" class="bg">
+
     {% if user.is_authenticated %}
         <h1>Hola {{ user.username }}</h1>
         {% if user.is_superuser %}
@@ -11,12 +13,26 @@
             <br>
         {% endif %}
         {% if game_active %}
-            <a href="{% url 'dashboard' %}">Dashboard</a> <br>
             <a href="{% url 'guess' %}">Guess</a> <br>
             <a href="{% url 'history' %}">History</a> <br>
         {% endif %}
         <a href="{% url 'users' %}">Usuarios registrados</a> <br>
-        <a href="{% url 'sign_out' %}">Cerrar sesión</a> <br>
+        <a href="{% url 'sign_out' %}">Cerrar sesión</a> <br> <br>
+
+        Fecha actual: {{ date }} <br>
+        Fecha final: {{ end_date }} <br>
+        Pasamos la fecha final: {{ end_countdown }} <br>
+
+        {% for team in Teams %}
+            <li> 
+            {{ team.name }} <br>
+            Score: {{ team.score }} <br>
+            Users: <br>
+            {% for user in team.users %}
+                {{ user }} <br>
+            {% endfor %}
+            </li> <br>
+        {% endfor %}
     {% else %}
     Fuera de aqui. Negro.
         <a href="{% url 'sign_up' %}">Registrate</a>
