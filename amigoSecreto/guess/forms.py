@@ -1,18 +1,36 @@
+""" guess Forms. """
+
+# Forms de Django.
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+
+# Modelos de Django.
 from django.contrib.auth.models import User, Group
+
+# Validadores de Django.
 from django.core.exceptions import ValidationError
+
+# Utilidades de Django.
 from django.utils.timezone import make_aware
-from .models import *
+
+# Scheduler.
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
+
+# Nuestros modelos.
+from .models import Game, UserData, Teams, GivesTo, UserTeam, Guess, Round, Options
+
+# Utilidades.
 from random import shuffle, choices
+from datetime import date, datetime, timedelta
 
 class SignUpForm(UserCreationForm):
     """ 
     Clase heredada de UserCreationFrom para registrar usuarios.
     Campos: 
-        - username: Nombre del usuario.
+        - first_name
+        - last_name
+        - username
         - alias: Nombre que aparecera en la interfaz y tendra entre 2 y 4 caracteres.
         - gift: Regalo deseado.
         - password1: Contrasenya.
@@ -27,8 +45,7 @@ class SignUpForm(UserCreationForm):
     password2 = forms.CharField(widget=forms.PasswordInput)
     
     class Meta:
-        """ Indicamos el modelo a usar y los campos del form para el registro.
-        Dichos campos son: username, alias, gift, password1 y password2."""
+        """ Indicamos el modelo a usar y los campos del form para el registro. """
         model = User
         fields = (
             'first_name',
@@ -41,36 +58,33 @@ class SignUpForm(UserCreationForm):
         )
 
     def clean_first_name(self):
-        """ Guarda el nombre."""
         first_name = self.cleaned_data['first_name']
         return first_name
 
     def clean_last_name(self):
-        """ Guarda el apellido."""
         last_name = self.cleaned_data['last_name']
         return last_name
 
     def clean_username(self):
-        """ Guarda el username y verifica que se encuentre en uso."""
+        """ Verificamos que el username no esta en uso."""
         username = self.cleaned_data['username']
         if User.objects.filter(username=username).exists():
             raise ValidationError("Username already exists")
         return username
 
     def clean_alias(self):
-        """ Guarda el alias."""
+        """ Verificamos que el alias no esta en uso."""
         alias = self.cleaned_data['alias']
         if UserData.objects.filter(alias=alias).exists():
             raise ValidationError("Alias already exists")
         return alias
 
     def clean_gift(self):
-        """ Guarda el regalo deseado."""
         gift = self.cleaned_data['gift']
         return gift
 
     def clean_password2(self):
-        """ Verifica que ambas contrasenyas coinciden y la guarda."""
+        """ Verifica que ambas contrasenyas coinciden."""
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
         if password1 and password2 and password1 != password2:
@@ -78,7 +92,8 @@ class SignUpForm(UserCreationForm):
         return password2
 
     def save(self, commit: bool = True):
-        """ Guarda los datos del usuario en la BD."""
+        """ Guarda los datos del usuario en la BD usando los modelos
+        User y UserData."""
         user = User.objects.create_user(
             username=self.cleaned_data['username'],
             email='',
@@ -98,14 +113,15 @@ class GameForm(forms.ModelForm):
     Clase heredada de forms.Form para crear instancias de juego.
     Campos: 
         - startDate: Fecha de inicio del juego.
-        - days: Numero de juegos que durara el juego.
+        - days: Numero de juegos que durara el juego. Debe tener un valor entre
+            6 y 12, incluyendo ambas.
     """
     startDate = forms.DateField(initial=date.today() + timedelta(days=1))
     days = forms.IntegerField(min_value=6, max_value=12)
 
     class Meta:
-        """ Indicamos el modelo a usar y los campos del form para el registro.
-        Dichos campos son: username, alias, gift, password1 y password2."""
+        """ Indicamos el modelo a usar y los campos del form para la 
+        creacion del juego. """
         model = Game
         fields = (
             'startDate',
@@ -113,20 +129,25 @@ class GameForm(forms.ModelForm):
         )
 
     def clean_startDate(self):
-        """ Guarda la fecha de inicio del juego."""
+        """ Verificamos que la fecha de inicio sea al menos el dia siguiente."""
         startDate = self.cleaned_data['startDate']
         if startDate <= date.today():
             raise forms.ValidationError('The date must be at least tomorrow.')
         return startDate
 
     def clean_days(self):
-        """ Guarda el numero de dias que durara el juego."""
         days = self.cleaned_data['days']
         return days
 
     def gen_round(self, startDate, days):
-        """ Genera las fechas de las selecciones de una ronda segun su fecha de inicio
-        y el tiempo que durara."""
+        """ 
+        Genera las fechas de las selecciones de una ronda segun su fecha de inicio
+        y el tiempo que durara.
+
+        INPUTS:
+            - startDate: Fecha de inicio de la ronda.
+            - days: Numero de dias que durara la ronda.
+        """
         # Las selecciones duran en horas 4 veces el numero de dias que dura la ronda.
         # Ronda de 2, 3, 6 dias -> selecciones de 8, 12, 24 horas respectivamente.
         select_duration = days*4
@@ -138,10 +159,10 @@ class GameForm(forms.ModelForm):
 
     def create_teams(self):
         """ Separa todos los usuarios en User en dos equipos: Lobos y aldeanos, 
-        creando las instancias de Team y UserTeam correspondientes."""
+        creando las instancias de Team y UserTeam correspondientes. Luego crea
+        las instancias de GivesTo correspondientes, las cuales representan la
+        relacion 'X le regala a Y'."""
         # Almacenamos la instancia de todos los jugadores
-        # TODO hay que definir aquí si van a ser todos los usuarios o si el superusuario los 
-        # va agregando
         users = list(UserData.objects.all())
 
         # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
@@ -156,17 +177,18 @@ class GameForm(forms.ModelForm):
         # El último juego creado es el activo
         game = Game.objects.latest('startDate')
 
-        # Creamos el equipo lobo para el juego actual
+        # Creamos las instancias de UserTeam para el equipo lobo.
         wolfs_team = Teams.objects.get_or_create(game=game, name='Wolfs')[0]#, score=0)
         for wolf in wolfs:
             UserTeam.objects.create(team=wolfs_team, user=wolf.user)
 
-        # Creamos el equipo aldeano para el juego actual
+        # Creamos las instancias de UserTeam para el equipo aldeano.
         villagers_team = Teams.objects.get_or_create(game=game, name='Villagers')[0]#, score=0)
         for villager in villagers:
             UserTeam.objects.create(team=villagers_team, user=villager.user)
 
         ##### ------------ REPRESENTACION DEL POTE DE EAS ------------ #####
+        # Creamos las instancias de GivesTo.
         shuffle(wolfs)
         shuffle(villagers)
         for i in range(len(wolfs)):
@@ -182,10 +204,10 @@ class GameForm(forms.ModelForm):
         funcion sera la que ejecutara un job en la fecha indicada.
         INPUTS:
             - group: Lista de instancias UserTeam, los cuales son los usuarios que
-                        van a intentar adivinar en esta ronda.
+                van a intentar adivinar en esta ronda.
             - round: Instancia de Round que representa la ronda actual.
             - options: Conjunto de opciones que tiene cada usuario de group para hacer
-                        la adivinanza. options[i] corresponde a las opciones de group[i].
+                la adivinanza. options[i] corresponde a las opciones de group[i].
             - first_selection: Indica si es la primera seleccion de la ronda.
         """
         def set_options(
@@ -234,34 +256,35 @@ class GameForm(forms.ModelForm):
                 )
         return set_options
     
-    def create_selections(self, round, dates, k):
+    def create_selections(self, round, dates):
         """ 
         Calcula los grupos por selección y las opciones de adivinanza de los usuarios.
         INPUTS:
             - round: Instancia de Round que indica la ronda actual.
             - dates: Conjunto de fechas en las que se ejecutara cada job.
-            * k: Variable que se usa para hacer pruebas.
         """
-        ###### EL ARGUMENTO k SOLO SE USA PARA LAS PRUEBAS
-        userteam_instances, wolfs, villagers = [], [], []
         # Obtenemos el juego y el ID de los teams
         game = round.game
         team_ids = game.teams_set.values_list('id', flat=True)
-        # Obtener los del juego actual
+
+        # Almacenaremos los usuarios, los lobos y los aldeanos respectivamente.
+        userteam_instances, wolfs, villagers = [], [], []
+        # Obtenemos los usuarios del juego actual
         for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
             userteam_instances.append(user_team_pair)
+            # Ademas los separamos en lobos y aldeanos
             if user_team_pair.team.name == "Wolfs": wolfs.append(user_team_pair)
             else: villagers.append(user_team_pair)
 
-        # Creamos unos indices con el numero de participantes y los ordenamos aleatoriamente.
+        # Ordenamos aleatoriamente los usuarios.
         N = len(userteam_instances)
         shuffle(userteam_instances)
 
-        # Calculamos el numero de usuarios que intentaran adivinar por cada seleccion.
+        # Calculamos el numero de usuarios que intentaran adivinar por cada seleccion,
+        # tratando de ser lo mas equitativo posible,
         S = [N//6+1 for _ in range(N%6)] + [N//6 for _ in range(6-N%6)]
         groups = []
-        for i in range(6):
-            groups.append(userteam_instances[sum(S[:i]) : sum(S[:i+1])])
+        for i in range(6): groups.append(userteam_instances[sum(S[:i]) : sum(S[:i+1])])
         
         # Creamos las opciones de cada jugador de cada seleccion.
         round_options = []
@@ -277,9 +300,7 @@ class GameForm(forms.ModelForm):
                 else: i_options.append(wolfs[:3])
             round_options.append(i_options.copy())
 
-        # Descomentar las siguientes 2 lineas para hacer pruebas
-        #dates = [datetime.now() + timedelta(hours=k*6) + \
-        #    timedelta(hours=i) for i in range(len(groups))]
+        # Creamos los jobs correspondientes a cada seleccion.
         scheduler = BackgroundScheduler()
         for i, group in enumerate(groups):
             # Creamos un job por cada seleccion.
@@ -291,9 +312,7 @@ class GameForm(forms.ModelForm):
 
     def save(self, commit: bool = True):
         """ Guarda los datos del juego y las rondas en la BD."""
-
-        # CREAMOS LA INSTANCIA DEL JUEGO.
-        # Fecha de inicil del juego
+        # Fecha de inicial del juego
         startDate = self.cleaned_data['startDate']
         startDate = datetime(
             year=startDate.year,
@@ -302,9 +321,9 @@ class GameForm(forms.ModelForm):
         )
         # Numero de dias que durara el juego
         days = self.cleaned_data['days']
-        # Fecha final.
+        # Fecha del final de la fase de adivinanzas.
         endDate = startDate + timedelta(days=self.cleaned_data['days'])
-
+        # Creamos la instancia del juego.
         game = Game.objects.create(
             startDate=make_aware(startDate),
             days=self.cleaned_data['days'],
@@ -312,10 +331,8 @@ class GameForm(forms.ModelForm):
         )
         game.save()
 
-        # CREAMOS LAS INSTANCIAS DE RONDAS CON SUS RESPECTIVAS SELECCIONES.
-        # Aqui almacenaremos las rondas creadas
+        # Creamos las fechas de seleccion de cada ronda,
         rounds = []
-
         # Ronda 1
         if days in (9, 12): 
             rounds.append(self.gen_round(startDate, 3))
@@ -323,7 +340,6 @@ class GameForm(forms.ModelForm):
         else:
             rounds.append(self.gen_round(startDate, 2))
             startDate += timedelta(days=2)
-
         # Ronda 2
         if days in (8, 9, 11, 12): 
             rounds.append(self.gen_round(startDate, 3))
@@ -331,24 +347,22 @@ class GameForm(forms.ModelForm):
         else:
             rounds.append(self.gen_round(startDate, 2))
             startDate += timedelta(days=2)
-
         # Ronda 3
         if days in (7, 8, 9): rounds.append(self.gen_round(startDate, 3))
         elif days > 9: rounds.append(self.gen_round(startDate, 6))
         else: rounds.append(self.gen_round(startDate, 2))
 
-        # CREAMOS LOS EQUIPOS
+        # Creamos los equipos
         self.create_teams()
 
-        # SACAMOS A TODOS LOS USUARIOS DE TODOS LOS GRUPOS
+        # Sacamos a los usuarios de todos los grupos.
         guessing = Group.objects.get(name='Guessing')
         guessed = Group.objects.get(name='Guessed')
         next_to_guess = Group.objects.get(name='NextToGuess')
         guessing.user_set.clear()
         guessed.user_set.clear()
         next_to_guess.user_set.clear()
-
-        # COLOCAMOS TODOS LOS USUARIOS EN NextToGuess
+        # Colocamos todos los usuarios en NextToGuess
         team_ids = game.teams_set.values_list('id', flat=True)
         for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
             next_to_guess.user_set.add(user_team_pair.user)
@@ -368,14 +382,22 @@ class GameForm(forms.ModelForm):
             self.create_selections(round, dates, i)
 
 class GuessForm(forms.ModelForm):
+    """ 
+    Clase heredada de forms.ModelForm para crear instancias de adivinanzas.
+    Campos: 
+        - gifter: Usuario que entrega el regalo.
+        - gifted: Usuario que recibe el regalo.
+    """
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
         super(GuessForm, self).__init__(*args, **kwargs)
 
-        # El último juego creado es el activo
+        # Obtenemos los datos del usuario en sesion.
+        self.user = kwargs.pop('user')
+        # El último juego creado es el activo.
         game = Game.objects.latest('startDate')
         team = UserTeam.objects.filter(user=self.user)[0].team 
 
+        # Si no nos encontramos en la fase del dia de juego.
         if not game.gameDay:
             # Obtenemos las opciones del jugador para elegir a quien adivinar.
             gifter_options = Options.objects.filter(user=self.user)[0]
@@ -388,7 +410,6 @@ class GuessForm(forms.ModelForm):
             # Colocaremos los aliases en vez de los usernames.
             gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
 
-
             # Colocamos todos los jugadores como opcion de gifted.
             gifted_options = list(UserTeam.objects.all())
             # Obtenemos los UserData de cada jugador.
@@ -396,8 +417,9 @@ class GuessForm(forms.ModelForm):
             # Colocaremos los aliases en vez de los usernames
             gifted_options = [(user_data.alias, user_data.alias) for user_data in gifted_options]
 
-
+        # En cambio, si nos encontramos en la fase de dia del juego.
         else:
+            # Las opciones de gifter seran todos los usuarios del equipo contrario.
             gifter_options = []
             for user_team in UserTeam.objects.all():
                 if user_team.team != team:
@@ -405,15 +427,17 @@ class GuessForm(forms.ModelForm):
             # Colocaremos los aliases en vez de los usernames.
             gifter_options = [(user_data.alias, user_data.alias) for user_data in gifter_options]
 
+            # La unica opcion de gifted sera el usuario registrado.
             alias = UserData.objects.filter(user=self.user)[0]
             gifted_options = [(alias, alias)]
 
+        # Colocamos las opciones.
         self.fields['gifter'] = forms.ChoiceField(choices=gifter_options)
         self.fields['gifted'] = forms.ChoiceField(choices=gifted_options)
 
     class Meta:
-        """ Indicamos el modelo a usar y los campos del form para el registro.
-        Dichos campos son: username, alias, gift, password1 y password2."""
+        """ Indicamos el modelo a usar y los campos del form para la 
+        creacion del guess. """
         model = Guess
         fields = (
             'gifter',
@@ -433,16 +457,18 @@ class GuessForm(forms.ModelForm):
         return gifted.user
 
     def save(self, commit: bool = True):
+        """ Guarda los datos del guess en la BD."""
         # El último juego creado es el activo
         game = Game.objects.latest('startDate')
 
-        # El owner sera el jugaor registrado
+        # El owner sera el jugador registrado
         owner = self.user
         # Obtenemos el gifter y el gifted
         gifter = self.cleaned_data['gifter']
         gifted = self.cleaned_data['gifted']
-        if not game.gameDay:
 
+        # Si no estamos en la fase de dia del juego.
+        if not game.gameDay:
             # Obtenemos la respuesta
             if GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted: 
                 # Si adivino correctamente, la respuesta sera True
@@ -470,6 +496,7 @@ class GuessForm(forms.ModelForm):
             # Eliminamos las opciones del owner
             Options.objects.filter(user=owner).delete()
 
+        # En cambio, si estamos en la fase de dia del juego.
         else:
             # Verificamo si adivino correctamente
             answer = GivesTo.objects.filter(gifter=gifter)[0].gifted == gifted
@@ -483,7 +510,7 @@ class GuessForm(forms.ModelForm):
             team.save()
 
             # Movemos al owner del grupo Guessing a Guessed (si respondio correctamente)
-            # o a NextToGuess (si respondie incorrectamente)
+            # o a NextToGuess (si respondi0 incorrectamente)
             Group.objects.get(name='Guessing').user_set.remove(self.user)
             if answer: Group.objects.get(name='Guessed').user_set.add(self.user)
             else: Group.objects.get(name='NextToGuess').user_set.add(self.user)
@@ -526,27 +553,33 @@ class GuessForm(forms.ModelForm):
             # Si llegamos hasta aca, significa que ya finalizo el juego.
             game.end = True
             game.save()
-            
-            
+                     
 class StartGameForm(forms.Form):
+    """ 
+    Clase heredada de forms.ModelForm para pasar un juego a la fase del dia de juego.
+    Campos: 
+        - choice: Mas que todo para verificar que el usuario quiere iniciar la fase
+            del dia de juego. Solo hay dos opciones: Si y No.
+    """
     def __init__(self, *args, **kwargs):
         super(StartGameForm, self).__init__(*args, **kwargs)
 
         # El último juego creado es el activo
         self.game = Game.objects.latest('startDate')
-
         self.text = "Do you want to start the " + str(self.game)
         self.fields[self.text] = forms.TypedChoiceField(
             choices=((False, 'No'), (True, 'Yes'))
         )
 
     def save(self, commit: bool = True):
+        """ Actualiza los datos del juego en la BD."""
         if self.cleaned_data[self.text]:
             # Obtenemos los 3 grupos
             guessing = Group.objects.get(name='Guessing')
             guessed = Group.objects.get(name='Guessed')
             next_to_guess = Group.objects.get(name='NextToGuess')
-
+            
+            # Obtenemos los ids de los equipos
             team_ids = self.game.teams_set.values_list('id', flat=True)
 
             # Sacamos a todos los usuarios de Guessed y Guessing
@@ -557,11 +590,13 @@ class StartGameForm(forms.Form):
             for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
                 next_to_guess.user_set.add(user_team_pair.user)
 
+            # Indicamos que el juego actual esta en fase de dia del juego.
             self.game.gameDay = True
             self.game.save()
 
             # Elegimos aleatoriamente a un usuario para adivinar
             users = [user for user in UserData.objects.all()]
             shuffle(users)
+            # Y los pasamos del grupo NextToGuess a Guessing.
             Group.objects.get(name='NextToGuess').user_set.remove(users[0].user)
             Group.objects.get(name='Guessing').user_set.add(users[0].user)

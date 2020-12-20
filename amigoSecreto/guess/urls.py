@@ -1,7 +1,19 @@
-"""guess URL Configuration"""
+""" guess URL Configuration. """
 
 from django.urls import path
-from .views import *
+from .views import (
+    SignInView, 
+    SignUpView, 
+    SignOutView, 
+    WelcomeView, 
+    CreateGameView,
+    GuessView, 
+    HistoryView, 
+    UsersView, 
+    RulesView, 
+    StartGameView, 
+    ForbiddenView
+)
 
 urlpatterns = [
     path('', WelcomeView.as_view(), name='home'),
