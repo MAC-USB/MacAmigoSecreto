@@ -7,8 +7,8 @@
     {% if user.is_authenticated %}
         <h1>Hola {{ user.username }}</h1>
         {% if user.is_superuser %}
-            <a href="{% url 'create_game' %}">Crear juego</a>
-            <br>
+            <a href="{% url 'create_game' %}">Crear juego</a> <br>
+            <a href="{% url 'start_game' %}">Iniciar juego</a> <br>
         {% endif %}
         {% if game_active %}
             <a href="{% url 'guess' %}">Guess</a> <br>
@@ -21,7 +21,12 @@
         Fecha final: {{ end_date }} <br>
         Pasamos la fecha final: {{ end_countdown }} <br> <br>
 
-        Guessing: {{ guessing }} <br> <br>
+        {% if end_game %}
+            Winners: {{ winners }}
+        {% else %}
+            Guessing: {{ guessing }}
+        {% endif %}
+        <br> <br>
         <ul>
             {% for team in Teams %}
                 <li> 

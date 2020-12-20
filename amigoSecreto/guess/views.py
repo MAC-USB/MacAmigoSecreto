@@ -81,6 +81,12 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
         # Inicio el juego
         context['start_game'] = not game.gameDay
 
+        # Finalizo el juego
+        context['end_game'] = game.end
+        if context['end_game']:
+            if teams[0].score < teams[1].score: context['winners'] = teams[0].name
+            else: context['winners'] = teams[1].name
+
         return context
 
 class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):

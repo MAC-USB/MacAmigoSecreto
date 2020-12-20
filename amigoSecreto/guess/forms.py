@@ -522,6 +522,10 @@ class GuessForm(forms.ModelForm):
                     Group.objects.get(name='NextToGuess').user_set.remove(user_data.user)
                     Group.objects.get(name='Guessing').user_set.add(user_data.user)
                     return
+
+            # Si llegamos hasta aca, significa que ya finalizo el juego.
+            game.end = True
+            game.save()
             
             
 class StartGameForm(forms.Form):
