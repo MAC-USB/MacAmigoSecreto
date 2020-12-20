@@ -3,6 +3,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.contrib import messages
 # from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.generic import CreateView, TemplateView, ListView, FormView
 from django.utils.decorators import method_decorator
@@ -103,6 +104,10 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.save()
         return redirect('/')
 
+    def handle_no_permission(self):
+        messages.add_message(self.request, messages.INFO, "You must be a superuser.")
+        return redirect('/forbidden/')
+
 class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Guess
     template_name = 'templates/guess_form.html'
@@ -123,8 +128,12 @@ class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect('/')
 
     def test_func(self):
-        # TODO verificar que el usuario esta en Guessing.
+        # Verifcamos que el usuario esta en Guessing.
         return self.request.user.groups.filter(name = "Guessing").exists()
+
+    def handle_no_permission(self):
+        messages.add_message(self.request, messages.INFO, "It's not your turn to guess yet.")
+        return redirect('/forbidden/')
 
 class HistoryView(LoginRequiredMixin, TemplateView):
     template_name = 'templates/history.html'
@@ -214,12 +223,12 @@ class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         """
         # Condiciones para ver esta vista:
         # Ser super usuarios
-        cond1 = self.request.user.is_superuser
+        self.cond1 = self.request.user.is_superuser
         # Que ya se haya alcanzado la fecha limite del ultimo juego creado
-        cond2 = make_aware(datetime.now() + timedelta(days=30)) >= Game.objects.latest('startDate').endDate
+        self.cond2 = make_aware(datetime.now() + timedelta(days=30)) >= Game.objects.latest('startDate').endDate
         # Que el ultimo juego creado no haya sido iniciado
-        cond3 = not Game.objects.latest('startDate').gameDay
-        return cond1 and cond2 and cond3
+        self.cond3 = not Game.objects.latest('startDate').gameDay
+        return self.cond1 and self.cond2 and self.cond3
 
     def form_valid(self, form):
         '''
@@ -228,3 +237,34 @@ class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         '''
         form.save()
         return redirect('/')
+
+    def handle_no_permission(self):
+        if not self.cond1:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "You must be a superuser."
+            )
+        elif not self.cond2:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "The last game has not finished the guessing phase yet."
+            )
+        else:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "The last game is already in the game day phase."
+            )
+        return redirect('/forbidden/')
+
+class ForbiddenView(LoginRequiredMixin, TemplateView):
+    template_name = 'templates/forbidden.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        storage = messages.get_messages(self.request)
+        context['forbidden_message'] = list(storage)[-1]
+        storage.used = False
+        return context

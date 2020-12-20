@@ -14,4 +14,5 @@ urlpatterns = [
     path('users/', UsersView.as_view(), name='users'),
     path('rules/', RulesView.as_view(), name='rules'),
     path('start_game/', StartGameView.as_view(), name='start_game'),
+    path('forbidden/', ForbiddenView.as_view(), name='forbidden')
 ]
