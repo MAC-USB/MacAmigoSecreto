@@ -7,9 +7,10 @@
     {% if user.is_authenticated %}
         <h1>Hola {{ user.username }}</h1>
         {% if user.is_superuser %}
-            <a href="{% url 'create_game' %}">Crear juego</a> <br>
             {% if game_active %}
                 <a href="{% url 'start_game' %}">Iniciar juego</a> <br>
+            {% else %}
+                <a href="{% url 'create_game' %}">Crear juego</a> <br>
             {% endif %}
         {% endif %}
         {% if game_active %}

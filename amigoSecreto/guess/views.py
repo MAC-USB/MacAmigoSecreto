@@ -124,7 +124,8 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     Clase que representa la vista para la creacion de una instancia de juego. 
     Hereda de las clases:
         - LoginRequiredMixin: Se requiere que haya un usuario en sesion.
-        - UserPassesTestMixin: Para requerir que el usuario sea superusuario.
+        - UserPassesTestMixin: Para requerir que el usuario sea superusuario y
+            no haya ningun otro juego creado.
         - CreateView: View de Django para crear instancia de algun Modelo.
     """
     model = Game
@@ -132,8 +133,16 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     template_name = 'templates/game_form.html'
 
     def test_func(self):
-        """ Permitimos solo a superusuarios."""
-        return self.request.user.is_superuser
+        """ 
+        Para entrar a la vista se requiere que:
+            * El usuario sea superusuario.
+            * No hay ningun otro juego creado.
+        """
+        # Guardamos las condiciones como atributos de la isntancia actual porque luego
+        # las necesitaremos.
+        self.cond1 = self.request.user.is_superuser
+        self.cond2 = not bool(len(Game.objects.all()))
+        return self.cond1 and self.cond2
 
     def form_valid(self, form):
         """ En este parte, si el formulario es valido guardamos lo que 
@@ -142,9 +151,20 @@ class CreateGameView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect('/')
 
     def handle_no_permission(self):
-        """ Si algun usuario no superusuario intenta acceder a la pagina, se le redirigira
+        """ Si el usuario no cumple las condiciones, se le redirigira
         a la pagina Forbidden. """
-        messages.add_message(self.request, messages.INFO, "You must be a superuser.")
+        if not self.cond1:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "You must be a superuser."
+            )
+        else:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "There is already a game created."
+            )
         return redirect('/forbidden/')
 
 class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):

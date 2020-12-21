@@ -368,7 +368,7 @@ class GameForm(forms.ModelForm):
             next_to_guess.user_set.add(user_team_pair.user)
 
         # Almacenamos los datos de cada ronda.
-        for i, dates in enumerate(rounds):
+        for dates in rounds:
             round = Round.objects.create(
                 game=game,
                 firstSelection = dates[0],
@@ -379,7 +379,7 @@ class GameForm(forms.ModelForm):
                 sixthSelection = dates[5],
             )
             # round.save()
-            self.create_selections(round, dates, i)
+            self.create_selections(round, dates)
 
 class GuessForm(forms.ModelForm):
     """ 
