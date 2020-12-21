@@ -202,14 +202,32 @@ class GuessView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         messages.add_message(self.request, messages.INFO, "It's not your turn to guess yet.")
         return redirect('/forbidden/')
 
-class HistoryView(LoginRequiredMixin, TemplateView):
+class HistoryView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """ 
     Clase que representa la vista para los historiales publico y privado. 
     Hereda de las clases:
         - LoginRequiredMixin: Se requiere que haya un usuario en sesion.
+        - UserPassesTestMixin: Para requerir que haya algun juego creado.
         - TemplateView: View general de Django.
     """
     template_name = 'templates/history.html'
+
+    def test_func(self):
+        """ 
+        Para entrar a la vista se requiere que:
+            * Hay algun juego creado.
+        """
+        return bool(len(Game.objects.all()))
+
+    def handle_no_permission(self):
+        """ Si el usuario no cumple las condiciones, se le redirigira
+        a la pagina Forbidden. """
+        messages.add_message(
+            self.request, 
+            messages.INFO, 
+            "There must be a game created."
+        )
+        return redirect('/forbidden/')
 
     def get_context_data(self, **kwargs):
         """ 
