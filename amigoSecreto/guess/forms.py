@@ -367,8 +367,13 @@ class GameForm(forms.ModelForm):
         for user_team_pair in UserTeam.objects.filter(team__id__in=team_ids):
             next_to_guess.user_set.add(user_team_pair.user)
 
+        ####### BORRAR LAsS SIGUIENTES 2 LINEAS
+        d = 5   # Numero de minutos entre seleccion
+        rounds = [[make_aware(datetime.now() + timedelta(minutes=k*d*6 + i*d + d)) for i in range(6)] for k in range(3)]
+        ##########################
+
         # Almacenamos los datos de cada ronda.
-        for dates in rounds:
+        for k, dates in enumerate(rounds):
             round = Round.objects.create(
                 game=game,
                 firstSelection = dates[0],
@@ -389,10 +394,12 @@ class GuessForm(forms.ModelForm):
         - gifted: Usuario que recibe el regalo.
     """
     def __init__(self, *args, **kwargs):
+        user = kwargs['user']
+        kwargs = {k: kwargs[k] for k in kwargs if k != "user"}
         super(GuessForm, self).__init__(*args, **kwargs)
 
         # Obtenemos los datos del usuario en sesion.
-        self.user = kwargs.pop('user')
+        self.user = user
         # El último juego creado es el activo.
         game = Game.objects.latest('startDate')
         team = UserTeam.objects.filter(user=self.user)[0].team 
