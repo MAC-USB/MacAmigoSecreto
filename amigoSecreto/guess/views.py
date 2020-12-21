@@ -338,6 +338,7 @@ class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         """ 
         Para entrar a la vista se requiere que:
             * El usuario sea superusuario.
+            * Que haya un juego creado.
             * El ultimo juego creado pasado haya pasado la fase de adivinanzas.
             * El ultimo juego creado no se encuentre ya en la fase de dia del juego.
         """
@@ -346,10 +347,13 @@ class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
         # Ser super usuarios
         self.cond1 = self.request.user.is_superuser
+        # Que haya un juego creado
+        self.cond2 = bool(len(Game.objects.all()))
+        if not self.cond2: return False
         # Que ya se haya alcanzado la fecha limite del ultimo juego creado
-        self.cond2 = make_aware(datetime.now()) >= Game.objects.latest('startDate').endDate
+        self.cond3 = make_aware(datetime.now()) >= Game.objects.latest('startDate').endDate
         # Que el ultimo juego creado no haya sido iniciado
-        self.cond3 = not Game.objects.latest('startDate').gameDay
+        self.cond4 = not Game.objects.latest('startDate').gameDay
         return self.cond1 and self.cond2 and self.cond3
 
     def form_valid(self, form):
@@ -369,6 +373,12 @@ class StartGameView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 "You must be a superuser."
             )
         elif not self.cond2:
+            messages.add_message(
+                self.request, 
+                messages.INFO, 
+                "There must be a game created."
+            )
+        elif not self.cond3:
             messages.add_message(
                 self.request, 
                 messages.INFO, 
