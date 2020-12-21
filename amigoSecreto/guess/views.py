@@ -404,4 +404,9 @@ class ForbiddenView(LoginRequiredMixin, TemplateView):
         # Indicamos que todavia necesitamos los mensajes, por lo que no 
         # deben borrarse.
         storage.used = False
+        messages.add_message(
+            self.request, 
+            messages.INFO, 
+            "Pero tu eres gafo o que? Para que entras por tu cuenta al Forbidden? Fuera de aqui negro"
+        )
         return context
