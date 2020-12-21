@@ -17,28 +17,30 @@
         <a href="{% url 'users' %}">Usuarios registrados</a> <br>
         <a href="{% url 'sign_out' %}">Cerrar sesión</a> <br> <br>
 
-        Fecha actual: {{ date }} <br>
-        Fecha final: {{ end_date }} <br>
-        Pasamos la fecha final: {{ end_countdown }} <br> <br>
+        {% if game_active %}
+            Fecha actual: {{ date }} <br>
+            Fecha final: {{ end_date }} <br>
+            Pasamos la fecha final: {{ end_countdown }} <br> <br>
 
-        {% if end_game %}
-            Winners: {{ winners }}
-        {% else %}
-            Guessing: {{ guessing }}
-        {% endif %}
-        <br> <br>
-        <ul>
-            {% for team in Teams %}
-                <li> 
-                {{ team.name }} <br>
-                Score: {{ team.score }} <br>
-                Users: <br>
-                {% for user in team.users %}
-                    {{ user.alias }}. ({{ user.guessed }}) <br>
+            {% if end_game %}
+                Winners: {{ winners }}
+            {% else %}
+                Guessing: {{ guessing }}
+            {% endif %}
+            <br> <br>
+            <ul>
+                {% for team in Teams %}
+                    <li> 
+                    {{ team.name }} <br>
+                    Score: {{ team.score }} <br>
+                    Users: <br>
+                    {% for user in team.users %}
+                        {{ user.alias }}. ({{ user.guessed }}) <br>
+                    {% endfor %}
+                    </li> <br>
                 {% endfor %}
-                </li> <br>
-            {% endfor %}
-        </ul>
+            </ul>
+        {% endif %}
     {% else %}
     Fuera de aqui. Negro.
         <a href="{% url 'sign_up' %}">Registrate</a>

@@ -74,48 +74,48 @@ class WelcomeView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         # Verificamos si hay algun juego activo
         context['game_active'] = bool(len(Game.objects.all()))
+        if context['game_active']:
+            class TeamsData:
+                """ Clase donde almacenamos los datos de los teams. """
+                def __init__(self, name, score):
+                    self.name = name
+                    self.score = score
+                    self.users = []
 
-        class TeamsData:
-            """ Clase donde almacenamos los datos de los teams. """
-            def __init__(self, name, score):
-                self.name = name
-                self.score = score
-                self.users = []
+            # Obtenemos el juego actual
+            game = Game.objects.latest('startDate')
 
-        # Obtenemos el juego actual
-        game = Game.objects.latest('startDate')
+            # Obtenemos los equipos del juego actual
+            teams = list(Teams.objects.filter(game=game))
+            teams = [TeamsData(team.name, team.score) for team in teams]
 
-        # Obtenemos los equipos del juego actual
-        teams = list(Teams.objects.filter(game=game))
-        teams = [TeamsData(team.name, team.score) for team in teams]
+            # Agrupamos los usuarios
+            for user_team in UserTeam.objects.all():
+                for team in teams:
+                    if user_team.team.name == team.name:
+                        team.users.append(UserData.objects.filter(user=user_team.user)[0])
+            context['Teams'] = teams
 
-        # Agrupamos los usuarios
-        for user_team in UserTeam.objects.all():
-            for team in teams:
-                if user_team.team.name == team.name:
-                    team.users.append(UserData.objects.filter(user=user_team.user)[0])
-        context['Teams'] = teams
+            # Fecha actual.
+            context['date'] = make_aware(datetime.now()).strftime('%b %d, %Y %H:%M:%S')
+            # Fecha final del juego.
+            context['end_date'] = game.endDate.strftime('%b %d, %Y %H:%M:%S')
+            # Verificamos si ya pasamos la fecha final.
+            context['end_countdown'] = make_aware(datetime.now()) >= game.endDate
 
-        # Fecha actual.
-        context['date'] = make_aware(datetime.now()).strftime('%b %d, %Y %H:%M:%S')
-        # Fecha final del juego.
-        context['end_date'] = game.endDate.strftime('%b %d, %Y %H:%M:%S')
-        # Verificamos si ya pasamos la fecha final.
-        context['end_countdown'] = make_aware(datetime.now()) >= game.endDate
+            # La persona que esta adivinando
+            try: context['guessing'] = list(Group.objects.get(name='Guessing').user_set.all())[0]
+            except: context['guessing'] = ""
 
-        # La persona que esta adivinando
-        try: context['guessing'] = list(Group.objects.get(name='Guessing').user_set.all())[0]
-        except: context['guessing'] = ""
+            # Inicio el juego
+            context['start_game'] = not game.gameDay
 
-        # Inicio el juego
-        context['start_game'] = not game.gameDay
-
-        # Finalizo el juego
-        context['end_game'] = game.end
-        if context['end_game']:
-            # Si ya finalizo el juego, indicamos el equipo ganador.
-            if teams[0].score < teams[1].score: context['winners'] = teams[0].name
-            else: context['winners'] = teams[1].name
+            # Finalizo el juego
+            context['end_game'] = game.end
+            if context['end_game']:
+                # Si ya finalizo el juego, indicamos el equipo ganador.
+                if teams[0].score < teams[1].score: context['winners'] = teams[0].name
+                else: context['winners'] = teams[1].name
 
         return context
 
