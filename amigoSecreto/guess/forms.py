@@ -378,7 +378,7 @@ class GameForm(forms.ModelForm):
                 fifthSelection = dates[4],
                 sixthSelection = dates[5],
             )
-            # round.save()
+            round.save()
             self.create_selections(round, dates)
 
 class GuessForm(forms.ModelForm):
